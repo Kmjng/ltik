@@ -1077,17 +1077,17 @@ def main():
     # "미분류": "미분류"
     # }
     genre_mapping = {
-    "A": "환경, 기후재난, 재난",
-    "B": "미스터리, 스릴러, 범죄, 호러",
-    "C": "SF, 판타지",
-    "D": "자본주의, 노동, 빈곤, 개발, 도시화, 민주주의",
-    "E":  "이산, 이주, 난민, 식민주의, 제국주의, 전쟁",
-    "F":  "LGBTQ, 성평등, 장애",
-    "G":  "종교, 신화",
-    "H": "관계(힐링), 가족, 이웃, 우정, 성장",
-    "I":  "로맨스",
-    "J":  "역사",
-    "미분류":  "기타"
+    "A": "[환경/기후재난/재난]",
+    "B": "[미스터리/스릴러/범죄/호러]",
+    "C": "[SF/판타지]",
+    "D": "[자본주의/노동/빈곤/개발/도시화/민주주의]",
+    "E":  "[이산/이주/난민/식민주의/제국주의/전쟁]",
+    "F":  "[LGBTQ/성평등/장애]",
+    "G":  "[종교/신화]",
+    "H": "[관계(힐링)/가족/이웃/우정/성장]",
+    "I":  "[로맨스]",
+    "J":  "[역사]",
+    "미분류":  "[기타]"
     }
 
     # 🔥 역매핑 딕셔너리 추가 (한국어명 → 알파벳 코드)
@@ -1119,9 +1119,9 @@ def main():
         
         if not genre_country_df.empty:
             st.subheader(f"📈 선택된 장르의 **국가별 출간** 건수")
-            # st.markdown(f"**선택된 장르**: {', '.join(selected_genres)}")
             
             if len(selected_genres) == 1:
+                # 단일 장르 처리
                 genre_code = selected_genre_codes[0]  # 코드 사용
                 genre_data = genre_country_df[genre_country_df['genre'] == genre_code].nlargest(15, 'count')
                 
@@ -1137,35 +1137,38 @@ def main():
                 fig.update_xaxes(tickangle=45)
                 fig.update_layout(height=500)
                 st.plotly_chart(fig, use_container_width=True)
-            
+                
+            elif len(selected_genres) > 1:
+                # 다중 장르 처리
+                comparison_data = []
+                for i, genre_code in enumerate(selected_genre_codes):
+                    top_countries = genre_country_df[
+                        genre_country_df['genre'] == genre_code
+                    ].nlargest(10, 'count')
+                    
+                    # 🔥 차트에서는 한국어명으로 표시하기 위해 변환
+                    top_countries = top_countries.copy()
+                    top_countries['genre'] = selected_genres[i]  # 한국어명으로 변경
+                    
+                    comparison_data.extend(top_countries.to_dict('records'))
+                
+                comparison_df = pd.DataFrame(comparison_data)
+                
+                fig = px.bar(
+                    comparison_df,
+                    x='country',
+                    y='count',
+                    color='genre',
+                    title=f'선택된 장르들의 국가별 출간 건수 비교 (각 장르별 상위 10개국)',
+                    labels={'country': '국가', 'count': '출간 건수', 'genre': '장르'},
+                    barmode='group'
+                )
+                fig.update_xaxes(tickangle=45)
+                fig.update_layout(height=600)
+                st.plotly_chart(fig, use_container_width=True)
+        
         else:
-            comparison_data = []
-            for i, genre_code in enumerate(selected_genre_codes):
-                top_countries = genre_country_df[
-                    genre_country_df['genre'] == genre_code
-                ].nlargest(10, 'count')
-                
-                # 🔥 차트에서는 한국어명으로 표시하기 위해 변환
-                top_countries = top_countries.copy()
-                top_countries['genre'] = selected_genres[i]  # 한국어명으로 변경
-                
-                comparison_data.extend(top_countries.to_dict('records'))
-            
-            comparison_df = pd.DataFrame(comparison_data)
-            
-            fig = px.bar(
-                comparison_df,
-                x='country',
-                y='count',
-                color='genre',
-                title=f'선택된 장르들의 국가별 출간 건수 비교 (각 장르별 상위 10개국)',
-                labels={'country': '국가', 'count': '출간 건수', 'genre': '장르'},
-                barmode='group'
-            )
-            fig.update_xaxes(tickangle=45)
-            fig.update_layout(height=600)
-            st.plotly_chart(fig, use_container_width=True)
-
+            st.warning("⚠️ 선택된 장르에 대한 데이터가 없습니다.")
 
 
 

@@ -4,6 +4,4 @@ numpy
 plotly
 mysql-connector-python
 pyvis
-os
-PIL
-base64
+Pillow

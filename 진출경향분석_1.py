@@ -198,7 +198,7 @@ class LiteratureExportAnalyzer:
                     'total_books': data['total_books'],
                     'avg_subsequent': hub_index
                 }
-        """거점 지수 계산 - 원작 기준"""
+        
         book_patterns = {}
         
         for book_id, group in self.df.groupby('book_id'):
@@ -464,7 +464,7 @@ class LiteratureExportAnalyzer:
             final_scores = [rec['final_score'] for rec in recommendations]
             avg_score = sum(final_scores) / len(final_scores)
             
-            stats_info = f"\n📊 종합점수 통계 - {start_country} → {genre}\n"
+            stats_info = f"\n📊 종합점수 통계 - {start_country}\n"
             stats_info += f"   추천 국가 수: {len(recommendations)}개\n"
             stats_info += f"   종합점수 평균: {avg_score:.2f}\n"
             stats_info += f"   최고점: {max(final_scores):.2f}\n"
@@ -918,7 +918,7 @@ def main():
     st.sidebar.markdown("***")  
     st.sidebar.header("⚙️ 데이터 로딩")
     # 데이터 로드 버튼
-    if st.sidebar.button("🔄 DB에서 데이터 불러오기", type="primary"):
+    if st.sidebar.button("🔄 데이터 불러오기", type="primary"):
         st.session_state.load_data = True
 
     # 파일 경로 설정

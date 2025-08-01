@@ -15,6 +15,7 @@ from mysql.connector import Error
 warnings.filterwarnings('ignore')
 
 from PIL import Image
+
 import base64 
 logo = Image.open('./assets/logo1.jpg')  # 또는 'assets/logo.png'
 def get_base64_image(image_path):
@@ -30,7 +31,7 @@ logo_base64 = get_base64_image('./assets/logo1.jpg')
 
 # 페이지 설정
 st.set_page_config(
-    page_title="문학 작품 해외 수출 추천 시스템",
+    page_title="문학 작품 해외 수출국가 및 장르 추천 시스템",
     page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -905,7 +906,7 @@ def main():
             <h1>문학 작품 해외 수출 추천 시스템</h1>
         </div>
         """, unsafe_allow_html=True)
-    st.markdown("👀**원작 출간을 기준으로 후속 진출 국가를 분석합니다.**")
+    st.markdown("👀**원작 출간을 기준으로 후속 진출 국가 및 장르를 분석합니다.**")
     st.caption(f"*데이터 출처: Goodreads, GoogleSearch*")
 
     st.markdown("---")
@@ -1158,7 +1159,7 @@ def main():
     st.markdown("---")
     
     # 원작 기준 추천 시스템        
-    st.header("2️⃣ 원작 기준 후속 진출 국가 추천")
+    st.header("2️⃣ 후속 진출 국가 추천")
     st.markdown("✨선택한 국가에서 해당 장르를 **원작으로 출간**했을 때, 다음에 어느 국가로 진출하는 경향이 있는지 분석합니다.")
     
 
@@ -1354,7 +1355,8 @@ def main():
     with analysis_tab1:
         if analyzer.hub_scores:
             st.subheader("🏆 거점 국가 순위")
-            st.markdown("*원작 출간 후 평균적으로 많은 국가로 진출하는 거점 역할을 하는 국가들*")
+            st.markdown("*◎ 원작 출간 후 평균적으로 많은 국가로 진출하는 거점 역할을 하는 국가들*")
+            st.markdown("◎ 거점 지수 = 총 후속 진출 건수 / 원작 작품 수")
             hub_df = pd.DataFrame([
                 {
                     '순위': i+1,
@@ -1370,9 +1372,7 @@ def main():
             st.dataframe(hub_df, use_container_width=True)
     
     with analysis_tab2:
-        st.subheader("📚 장르별 작품 분포 (모든 장르 컬럼 포함)")
-        st.write("원작 기준")
-
+        st.subheader("📚 장르별 작품 분포")
     
 
         # 원작만 필터링한 후 장르 카운트
@@ -1395,14 +1395,13 @@ def main():
         fig = px.pie(
             values=list(top_genres.values()),
             names=list(top_genres.keys()),
-            title="상위 10개 장르별 작품 분포 (모든 장르 컬럼 합계)"
+            title="상위 10개 장르별 작품 분포"
         )
         st.plotly_chart(fig, use_container_width=True)
     
     
     with analysis_tab3:
         st.subheader("🌍 국가별 진출 현황")
-        st.write("원작 및 번역판 포함")
         country_counts = analyzer.df['국가'].value_counts().head(15)
         fig = px.bar(
             x=country_counts.index,

@@ -941,9 +941,9 @@ def main():
                 success = analyzer.load_data_from_db(DB_HOST, DB_NAME, DB_USER, DB_PASSWORD)
                 if success:
 
-                    st.success(f"✅ DB 데이터 로드 완료: {len(analyzer.df):,}행")
+                    # st.success(f"✅ DB 데이터 로드 완료: {len(analyzer.df):,}행")
                     original_count = len(analyzer.df[analyzer.df['원작여부'] == 'original'])
-                    st.success(f"✅ 원작 출간 기록: {original_count:,}건")
+                    # st.success(f"✅ 원작 출간 기록: {original_count:,}건")
                     analyzer.analyze_all()
                     # st.success("✅ 원작 기준 분석 완료")
                     st.session_state.data_loaded_page2 = True  # 페이지2 로드 완료 플래그 (추가)
@@ -964,14 +964,14 @@ def main():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("총 출간 기록", f"{len(analyzer.df):,}")
+        st.metric("◎ 총 출간 기록", f"{len(analyzer.df):,}")
     with col2:
         original_count = len(analyzer.df[analyzer.df['원작여부'] == 'original'])
-        st.metric("원작 출간", f"{original_count:,}")
+        st.metric("◎ 원작 출간", f"{original_count:,}")
     with col3:
-        st.metric("진출 국가 수", f"{analyzer.df['국가'].nunique()}")
+        st.metric("◎ 진출 국가 수", f"{analyzer.df['국가'].nunique()}")
     with col4:
-        st.metric("장르 수", f"{analyzer.df['genre1'].nunique()}")
+        st.metric("◎ 장르 수", f"{analyzer.df['genre1'].nunique()}")
     
     st.markdown("---")
     
@@ -981,7 +981,7 @@ def main():
         
         if wave_df is not None and len(wave_df) > 0:
             st.header("0️⃣ 확산 패턴 시각화")
-            st.markdown("✨출간 후 확산 패턴을 다이어그램으로 확인하세요.")
+            st.markdown("✨도서 출간 이후 확산 패턴을 다이어그램으로 확인하세요.")
             
             try:
                 # st.success(f"✅ Wave 데이터 로드 완료: {len(wave_df):,}행")
@@ -1022,7 +1022,7 @@ def main():
 
                     # 폰트 설정은 layout에서만 가능
                     fig.update_layout(
-                        title_text="국가 간 도서 수출 흐름 (Sankey Diagram)", 
+                        title_text="국가 간 도서 확산 흐름 (Sankey Diagram)", 
                         font=dict(
                             family="Arial, sans-serif",
                             size=20,  # 이 설정이 노드 라벨에도 적용됨
@@ -1037,11 +1037,11 @@ def main():
                     # 통계 정보 표시
                     col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.metric("총 흐름 수", f"{len(sankey_data)}")
+                        st.metric("◎ 총 흐름 수", f"{len(sankey_data)}")
                     with col2:
-                        st.metric("관련 국가 수", f"{len(all_nodes)}")
+                        st.metric("◎ 관련 국가 수", f"{len(all_nodes)}")
                     with col3:
-                        st.metric("총 이동 건수", f"{sankey_data['value'].sum():,}")
+                        st.metric("◎ 총 이동 건수", f"{sankey_data['value'].sum():,}")
                         
                 else:
                     st.warning("생키 다이어그램을 생성할 수 있는 데이터가 없습니다.")
@@ -1116,7 +1116,7 @@ def main():
                     genre_data,
                     x='country',
                     y='count',
-                    title=f'"{selected_genres[0]}" 장르의 국가별 출간 건수 (상위 15개국)',  # 한국어명 표시
+                    title=f'🕮{selected_genres[0]} 장르의 국가별 출간 건수 (상위 15개국)',  # 한국어명 표시
                     labels={'country': '국가', 'count': '출간 건수'},
                     color='count',
                     color_continuous_scale='viridis'

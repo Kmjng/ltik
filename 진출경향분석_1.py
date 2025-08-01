@@ -1062,19 +1062,31 @@ def main():
     available_genres = sorted(set().union(*[analyzer.df[f'genre{i}'].dropna().unique() for i in range(1, 5)]))
 
     # 장르 코드 매핑 딕셔너리
+    # genre_mapping = {
+    # "A": "Environment, Climate Disaster, Disaster",
+    # "B": "Mystery, Thriller, Crime, Horror",
+    # "C": "Science Fiction, Fantasy",
+    # "D": "Capitalism, Labor, Poverty, Development, Urbanization, Democracy",
+    # "E": "Diaspora, Migration, Refugees, Colonialism, Imperialism, War",
+    # "F": "LGBTQ, Gender Equality, Disability",
+    # "G": "Religion, Mythology",
+    # "H": "Relationships (Healing), Family, Neighbors, Friendship, Coming-of-age",
+    # "I": "Romance",
+    # "J": "History",
+    # "미분류": "미분류"
+    # }
     genre_mapping = {
-    "A": "Environment, Climate Disaster, Disaster",
-    "B": "Mystery, Thriller, Crime, Horror",
-    "C": "Science Fiction, Fantasy",
-    "D": "Capitalism, Labor, Poverty, Development, Urbanization, Democracy",
-    "E": "Diaspora, Migration, Refugees, Colonialism, Imperialism, War",
-    "F": "LGBTQ, Gender Equality, Disability",
-    "G": "Religion, Mythology",
-    "H": "Relationships (Healing), Family, Neighbors, Friendship, Coming-of-age",
-    "I": "Romance",
-    "J": "History",
-    "Other": "Cases that do not fall under the above categories", 
-    "Z": "미분류"
+    "A": "환경, 기후재난, 재난",
+    "B": "미스터리, 스릴러, 범죄, 호러",
+    "C": "SF, 판타지",
+    "D": "자본주의, 노동, 빈곤, 개발, 도시화, 민주주의",
+    "E":  "이산, 이주, 난민, 식민주의, 제국주의, 전쟁",
+    "F":  "LGBTQ, 성평등, 장애",
+    "G":  "종교, 신화",
+    "H": "관계(힐링), 가족, 이웃, 우정, 성장",
+    "I":  "로맨스",
+    "J":  "역사",
+    "미분류":  "기타"
     }
 
     # 🔥 역매핑 딕셔너리 추가 (한국어명 → 알파벳 코드)

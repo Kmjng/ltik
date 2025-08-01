@@ -375,7 +375,7 @@ class LiteratureExportAnalyzer:
                                 'total_transitions': total
                             }
 
-    def recommend_next_countries(self, start_country, genre, prob_weight=0.7, genre_weight=0.2, conf_weight=0.1, top_k=10):
+    def recommend_next_countries(self, start_country, genre, genre_mapping,  prob_weight=0.7, genre_weight=0.2, conf_weight=0.1, top_k=10):
 
         """특정 국가에서 특정 장르 원작로 시작했을 때 다음 진출 국가 추천"""
 
@@ -431,7 +431,8 @@ class LiteratureExportAnalyzer:
         # (2) 장르별 전이 데이터가 없는 경우 - 폴백(fallback), 전체 전이 확률 사용
         elif start_country in self.transition_matrix:
             transitions = self.transition_matrix[start_country]
-            message = f"⚠️ {start_country}에서 {genre} 장르 원작의 수출 이력이 부족하여 전체 장르 평균을 표시합니다."
+            # message = f"⚠️ {start_country}에서 {genre} 장르 원작의 수출 이력이 부족하여 전체 장르 평균을 표시합니다."
+            message = f"⚠️ {start_country}에서 {genre_mapping.get(genre, genre)} 장르 원작의 수출 이력이 부족하여 전체 장르 평균을 표시합니다."
             for next_country, probability in transitions.items():
                 # 장르 적합도 추가
                 genre_fit = 0
@@ -1229,7 +1230,7 @@ def main():
             
             # 후속 국가 추천
             recommendations, warning_message, debug_stats, time_progression = analyzer.recommend_next_countries(
-                    start_country, selected_genre, 
+                    start_country, selected_genre, genre_mapping
                     prob_weight=prob_weight, 
                     genre_weight=genre_weight, 
                     conf_weight=conf_weight,

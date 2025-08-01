@@ -12,13 +12,25 @@ from pyvis.network import Network
 import streamlit.components.v1 as components
 import mysql.connector
 from mysql.connector import Error
-
-
 warnings.filterwarnings('ignore')
+
+from PIL import Image
+import base64 
+logo = Image.open('./assets/logo1.jpg')  # 또는 'assets/logo.png'
+def get_base64_image(image_path):
+    """이미지를 base64로 인코딩"""
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+logo_base64 = get_base64_image('./assets/logo1.jpg')
+
+
+
+
 
 # 페이지 설정
 st.set_page_config(
-    page_title="한국 문학 해외 수출 추천 시스템",
+    page_title="문학 작품 해외 수출 추천 시스템",
     page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -887,12 +899,21 @@ class LiteratureExportAnalyzer:
 def main():
     import plotly.graph_objects as go
     import pandas as pd
-    st.title("📚 한국 문학 해외 수출 추천 시스템 (원작 기준)")
+    st.markdown(f"""
+        <div style="display: flex; align-items: center;">
+            <img src="data:image/png;base64,{logo_base64}" width="50" style="margin-right: 10px;">
+            <h1>문학 작품 해외 수출 추천 시스템</h1>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown("👀**원작 출간을 기준으로 후속 진출 국가를 분석합니다.**")
+    st.caption(f"*데이터 출처: Goodreads, GoogleSearch*")
+
     st.markdown("---")
-    st.markdown("**문학번역원 • 원작 출간 기준 후속 진출 국가 분석**")
-    st.markdown("**🌐 원작 → 후속 진출 패턴 시각화**")
     
+
+
     # 사이드바
+    st.sidebar.markdown("***")  
     st.sidebar.header("⚙️ 데이터 로딩")
     # 데이터 로드 버튼
     if st.sidebar.button("🔄 DB에서 데이터 불러오기", type="primary"):
@@ -918,11 +939,12 @@ def main():
             with st.spinner("DB에서 데이터 로딩 중..."):
                 success = analyzer.load_data_from_db(DB_HOST, DB_NAME, DB_USER, DB_PASSWORD)
                 if success:
+
                     st.success(f"✅ DB 데이터 로드 완료: {len(analyzer.df):,}행")
                     original_count = len(analyzer.df[analyzer.df['원작여부'] == 'original'])
                     st.success(f"✅ 원작 출간 기록: {original_count:,}건")
                     analyzer.analyze_all()
-                    st.success("✅ 원작 기준 분석 완료")
+                    # st.success("✅ 원작 기준 분석 완료")
                     st.session_state.data_loaded_page2 = True  # 페이지2 로드 완료 플래그 (추가)
                     st.session_state.load_data = False  # 플래그 리셋
                 else:
@@ -957,11 +979,11 @@ def main():
         wave_df = analyzer.load_wave_data_from_db(DB_HOST, DB_NAME, DB_USER, DB_PASSWORD)
         
         if wave_df is not None and len(wave_df) > 0:
-            st.header("0️⃣ 물결 확산 패턴 시각화")
-            st.markdown("✨출간 후 확산 패턴을 생키 다이어그램으로 확인하세요.")
+            st.header("0️⃣ 확산 패턴 시각화")
+            st.markdown("✨출간 후 확산 패턴을 다이어그램으로 확인하세요.")
             
             try:
-                st.success(f"✅ Wave 데이터 로드 완료: {len(wave_df):,}행")
+                # st.success(f"✅ Wave 데이터 로드 완료: {len(wave_df):,}행")
                 
                 # Sankey Diagram에 필요한 데이터 형태로 가공
                 # source_country가 없는 경우(원작)는 제외하고, source -> target 흐름을 집계
@@ -1027,7 +1049,6 @@ def main():
                 st.error(f"Wave 데이터 처리 오류: {e}")
                 st.info("데이터 형식을 확인해주세요.")
             
-            st.markdown("---")
         # wave 데이터가 없어도 에러 없이 넘어감 (else 블록 없음)
     
     st.markdown("---")
@@ -1084,7 +1105,7 @@ def main():
         
         if not genre_country_df.empty:
             st.subheader(f"📈 선택된 장르의 **국가별 출간** 건수")
-            st.markdown(f"**선택된 장르**: {', '.join(selected_genres)}")
+            # st.markdown(f"**선택된 장르**: {', '.join(selected_genres)}")
             
             if len(selected_genres) == 1:
                 genre_code = selected_genre_codes[0]  # 코드 사용
@@ -1179,7 +1200,7 @@ def main():
         reverse_mapping = {v: k for k, v in genre_mapping.items()}
         selected_genre = reverse_mapping.get(selected_genre_name, selected_genre_name)
         
-        st.caption(f"*장르 출처:Goodreads, GoogleSearch*")
+        st.caption(f"*장르 출처: GoogleSearch*")
 
     with col2:
         available_countries = sorted(analyzer.df['국가'].unique())
@@ -1326,7 +1347,7 @@ def main():
     
     # 전체 분석 결과
     st.markdown("---")
-    st.header("📋 전체 분석 결과(변경)")
+    st.header("📋 전체 분석 결과")
     
     analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["원작 거점 국가", "장르별 분포", "국가별 분포"])
     

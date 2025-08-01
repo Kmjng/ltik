@@ -1230,7 +1230,7 @@ def main():
             
             # 후속 국가 추천
             recommendations, warning_message, debug_stats, time_progression = analyzer.recommend_next_countries(
-                    start_country, selected_genre, genre_mapping
+                    start_country, selected_genre, genre_mapping,
                     prob_weight=prob_weight, 
                     genre_weight=genre_weight, 
                     conf_weight=conf_weight,

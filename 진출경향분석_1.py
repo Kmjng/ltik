@@ -13,6 +13,7 @@ import streamlit.components.v1 as components
 import mysql.connector
 from mysql.connector import Error
 warnings.filterwarnings('ignore')
+import math
 
 from PIL import Image
 
@@ -143,9 +144,10 @@ class LiteratureExportAnalyzer:
         return self.df[mask]
     
     def calculate_hub_scores(self):
-        """거점 지수 계산 - 원작 기준, 다중 장르 지원"""
+        """거점 지수 계산 - 원작 기준, 베이지안 평활화 적용"""
         book_patterns = {}
         
+        # 1️⃣ 각 책별로 원작 → 후속 진출 패턴 수집
         for book_id, group in self.df.groupby('book_id'):
             # 원작 발간 기록 찾기
             original_records = group[group['원작여부'] == 'original']
@@ -179,7 +181,7 @@ class LiteratureExportAnalyzer:
                         'subsequent_count': len(subsequent_countries)
                     }
         
-        # 원작 국가별 거점 점수 계산
+        # 2️⃣ 원작 국가별 거점 점수 계산
         hub_analysis = defaultdict(lambda: {'total_books': 0, 'total_subsequent': 0})
         
         for pattern in book_patterns.values():
@@ -189,66 +191,44 @@ class LiteratureExportAnalyzer:
             hub_analysis[original_country]['total_books'] += 1
             hub_analysis[original_country]['total_subsequent'] += subsequent_count
         
-        # 거점 지수 계산 (최소 3개 작품 이상)
+        # 🔴 NEW: 3️⃣ 거점 지수 최종 계산 (베이지안 평활화 적용)
+        
+        # Step 1: 전체 평균 거점지수(μ) 계산
+        total_books_all = 0
+        total_subsequent_all = 0
+        
         for country, data in hub_analysis.items():
-            if data['total_books'] >= 3:
-                hub_index = data['total_subsequent'] / data['total_books']
-                self.hub_scores[country] = {
-                    'hub_index': hub_index,
-                    'total_books': data['total_books'],
-                    'avg_subsequent': hub_index
-                }
+            if data['total_books'] >= 1:  # 최소 1개 작품
+                total_books_all += data['total_books']
+                total_subsequent_all += data['total_subsequent']
         
-        book_patterns = {}
+        # 전체 평균 거점지수 μ
+        mu = total_subsequent_all / total_books_all if total_books_all > 0 else 0
         
-        for book_id, group in self.df.groupby('book_id'):
-            # 원작 발간 기록 찾기
-            original_records = group[group['원작여부'] == 'original']
-            
-            if len(original_records) > 0:
-                # 원작이 여러 국가에 있다면 가장 빠른 날짜 선택
-                original_record = original_records.loc[original_records['발간일'].idxmin()]
-                original_country = original_record['국가']
-                original_date = original_record['발간일']
-                genre = original_record['genre1']
-                
-                # 원작 이후의 모든 진출 국가들 (원작 포함하지 않음)
-                subsequent_records = group[
-                    (group['발간일'] > original_date) | 
-                    ((group['발간일'] == original_date) & (group['국가'] != original_country))
-                ].sort_values('발간일')
-                
-                if len(subsequent_records) > 0:
-                    subsequent_countries = subsequent_records['국가'].tolist()
-                    
-                    book_patterns[book_id] = {
-                        'original_country': original_country,
-                        'original_date': original_date,
-                        'subsequent_countries': subsequent_countries,
-                        'genre': genre,
-                        'subsequent_count': len(subsequent_countries)
-                    }
+        # Step 2: 임계치 설정
+        m = 10  # >> 임계치 # 점수 안정화 (조정) , 적은 표본은 전체 평균에 더 끌림
         
-        # 원작 국가별 거점 점수 계산
-        hub_analysis = defaultdict(lambda: {'total_books': 0, 'total_subsequent': 0})
-        
-        for pattern in book_patterns.values():
-            original_country = pattern['original_country']
-            subsequent_count = pattern['subsequent_count']
-            
-            hub_analysis[original_country]['total_books'] += 1
-            hub_analysis[original_country]['total_subsequent'] += subsequent_count
-        
-        # 거점 지수 계산 (최소 3개 작품 이상)
+        # Step 3: 각 국가별 베이지안 평활화된 거점지수 계산
         for country, data in hub_analysis.items():
-            if data['total_books'] >= 3:
-                hub_index = data['total_subsequent'] / data['total_books']
+            if data['total_books'] >= 10:  # 최소 작품 갯수 설정
+                # 해당 국가의 원시 거점지수 r
+                r = data['total_subsequent'] / data['total_books']
+                
+                # 해당 국가의 작품 수 v
+                v = data['total_books']
+                
+                # 베이지안 평활화된 거점지수 계산
+                # 거점지수 = (μ * m + r * v) / (m + v)
+                bayesian_hub_index = (mu * m + r * v) / (m + v)
+                
                 self.hub_scores[country] = {
-                    'hub_index': hub_index,
+                    'hub_index': bayesian_hub_index,  # 베이지안 평활화된 값
+                    'raw_hub_index': r,              # 원시 거점지수 (참고용)
                     'total_books': data['total_books'],
-                    'avg_subsequent': hub_index
+                    'avg_subsequent': bayesian_hub_index,
+                    'global_avg': mu                 # 전체 평균 (참고용)
                 }
-    
+            
     def calculate_genre_fit(self):
         """장르별 국가 적합도 계산 - 다중 장르 지원"""
         # 각 장르별로 국가 출현 횟수 계산
@@ -1077,17 +1057,17 @@ def main():
     # "미분류": "미분류"
     # }
     genre_mapping = {
-    "A": "①[환경/기후재난/재난]",
-    "B": "②[미스터리/스릴러/범죄/호러]",
-    "C": "③[SF/판타지]",
-    "D": "④[자본주의/노동/빈곤/개발/도시화/민주주의]",
-    "E": "⑤[이산/이주/난민/식민주의/제국주의/전쟁]",
-    "F": "⑥[LGBTQ/성평등/장애]",
-    "G": "⑦[종교/신화]",
-    "H": "⑧[관계(힐링)/가족/이웃/우정/성장]",
-    "I": "⑨[로맨스]",
-    "J": "⑩[역사]",
-    "미분류":  "⑪[기타]"
+    "A": "① [환경/기후재난/재난]",
+    "B": "② [미스터리/스릴러/범죄/호러]",
+    "C": "③ [SF/판타지]",
+    "D": "④ [자본주의/노동/빈곤/개발/도시화/민주주의]",
+    "E": "⑤ [이산/이주/난민/식민주의/제국주의/전쟁]",
+    "F": "⑥ [LGBTQ/성평등/장애]",
+    "G": "⑦ [종교/신화]",
+    "H": "⑧ [관계(힐링)/가족/이웃/우정/성장]",
+    "I": "⑨ [로맨스]",
+    "J": "⑩ [역사]",
+    "미분류":  "⑪ [기타]"
     }
 
     # 🔥 역매핑 딕셔너리 추가 (한국어명 → 알파벳 코드)
@@ -1129,7 +1109,7 @@ def main():
                     genre_data,
                     x='country',
                     y='count',
-                    title=f'🕮{selected_genres[0]} 장르의 국가별 출간 건수 (상위 15개국)',  # 한국어명 표시
+                    title=f'🕮 {selected_genres[0]} 장르의 국가별 출간 건수 (상위 15개국)',  # 한국어명 표시
                     labels={'country': '국가', 'count': '출간 건수'},
                     color='count',
                     color_continuous_scale='viridis'
@@ -1261,7 +1241,7 @@ def main():
                     st.subheader("⏰ 시간순 진출 패턴")
                     timing_text = " → ".join([f"{country} ({data['avg_days']:.0f}일)" 
                                             for country, data in time_progression[:5]])
-                    st.info(f"평균 진출 순서: {timing_text}")
+                    st.info(f"평균 진출순서 (진출시차): {timing_text}")
                 # 네트워크 그래프 생성 및 표시
                 st.subheader("🕸️ 후속 진출 국가 네트워크")
                 st.write(f"  ᯓ ✈︎ **{start_country}에서 {selected_genre} 장르를 원작로 출간한 후 진출 경향성**")
@@ -1290,8 +1270,8 @@ def main():
                         🏃 **출간 시점 순위:** 평균 진출 시점 순위\n 
                         📍 **순위:** 종합 점수를 기준으로 한 추천 우선순위
                         """)
-                    st.text(debug_stats)
                     
+                st.text(debug_stats) # 📊 종합점수 통계 -     
                 st.markdown("---")
                 
                 # 추가 차트
@@ -1311,6 +1291,11 @@ def main():
                         color=[rec['probability'] for rec in chart_data],
                         color_continuous_scale="viridis"
                     )
+                    # hover에서 color 제거
+                    fig.update_traces(
+                        hovertemplate='<b>%{x}</b><br>진출 확률: %{y:.2f}%<extra></extra>'
+                    )
+
                     fig.update_layout(showlegend=False, height=400)
                     st.plotly_chart(fig, use_container_width=True)
                 
@@ -1330,34 +1315,34 @@ def main():
                     fig.update_layout(height=400)
                     st.plotly_chart(fig, use_container_width=True)
 
-                with chart_tab3:
-                    if time_progression:
-                        # 시간순 진출 막대 차트
-                        timing_data = time_progression[:8]
-                        fig = px.bar(
-                            x=[country for country, _ in timing_data],
-                            y=[data['avg_days'] for _, data in timing_data],
-                            title=f"{start_country}에서 {selected_genre} 출간 후 평균(중앙값) 진출 시점",
-                            labels={'x': '진출 국가', 'y': '평균 진출 시점 (일)'},
-                            color=[data['avg_days'] for _, data in timing_data],
-                            color_continuous_scale="viridis"
-                        )
-                        fig.update_layout(showlegend=False, height=400)
-                        st.plotly_chart(fig, use_container_width=True)
+                # with chart_tab3:
+                #     if time_progression:
+                #         # 시간순 진출 막대 차트
+                #         timing_data = time_progression[:8]
+                #         fig = px.bar(
+                #             x=[country for country, _ in timing_data],
+                #             y=[data['avg_days'] for _, data in timing_data],
+                #             title=f"{start_country}에서 {selected_genre} 출간 후 평균(중앙값) 진출 시점",
+                #             labels={'x': '진출 국가', 'y': '평균 진출 시점 (일)'},
+                #             color=[data['avg_days'] for _, data in timing_data],
+                #             color_continuous_scale="viridis"
+                #         )
+                #         fig.update_layout(showlegend=False, height=400)
+                #         st.plotly_chart(fig, use_container_width=True)
                         
-                        # 상세 시간 정보 테이블
-                        timing_df = pd.DataFrame([
-                            {
-                                '순위': i+1,
-                                '국가': country,
-                                '평균 진출 시점': f"{data['avg_days']:.0f}일",
-                                '진출 건수': data['count'],
-                                '최빠른 진출': f"{data['min_days']}일",
-                                '가장 늦은 진출': f"{data['max_days']}일"
-                            }
-                            for i, (country, data) in enumerate(timing_data)
-                        ])
-                        st.dataframe(timing_df, use_container_width=True)
+                #         # 상세 시간 정보 테이블
+                #         timing_df = pd.DataFrame([
+                #             {
+                #                 '순위': i+1,
+                #                 '국가': country,
+                #                 '평균 진출 시점': f"{data['avg_days']:.0f}일",
+                #                 '진출 건수': data['count'],
+                #                 '빠른 진출': f"{data['min_days']}일",
+                #                 '늦은 진출': f"{data['max_days']}일"
+                #             }
+                #             for i, (country, data) in enumerate(timing_data)
+                #         ])
+                #         # st.dataframe(timing_df, use_container_width=True)
             else:
                 st.warning(f"⚠️ {start_country}에서 {selected_genre} 장르 출간 후 후속 진출 데이터가 충분하지 않습니다.")
                 st.info("다른 국가나 장르를 선택해보세요.")
@@ -1372,14 +1357,14 @@ def main():
         if analyzer.hub_scores:
             st.subheader("🏆 거점 국가 순위")
             st.markdown("*◎ 원작 출간 후 평균적으로 많은 국가로 진출하는 거점 역할을 하는 국가들*")
-            st.markdown("◎ 거점 지수 = 총 후속 진출 건수 / 원작 작품 수")
+            st.markdown("◎ 거점지수 산출: 베이지안 평균")
             hub_df = pd.DataFrame([
                 {
                     '순위': i+1,
                     '국가': country,
                     '거점 지수': f"{data['hub_index']:.2f}",
-                    '원작 작품 수': data['total_books'],
-                    '평균 후속 진출': f"{data['avg_subsequent']:.1f}개국"
+                    # '원작 작품 수': data['total_books'],
+                    # '평균 후속 진출': f"{data['avg_subsequent']:.1f}개국"
                 }
                 for i, (country, data) in enumerate(
                     sorted(analyzer.hub_scores.items(), key=lambda x: x[1]['hub_index'], reverse=True)

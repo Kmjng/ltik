@@ -1042,32 +1042,31 @@ def main():
     # 장르 체크박스
     available_genres = sorted(set().union(*[analyzer.df[f'genre{i}'].dropna().unique() for i in range(1, 5)]))
 
-    # 장르 코드 매핑 딕셔너리
     # genre_mapping = {
-    # "A": "Environment, Climate Disaster, Disaster",
-    # "B": "Mystery, Thriller, Crime, Horror",
-    # "C": "Science Fiction, Fantasy",
-    # "D": "Capitalism, Labor, Poverty, Development, Urbanization, Democracy",
-    # "E": "Diaspora, Migration, Refugees, Colonialism, Imperialism, War",
-    # "F": "LGBTQ, Gender Equality, Disability",
-    # "G": "Religion, Mythology",
-    # "H": "Relationships (Healing), Family, Neighbors, Friendship, Coming-of-age",
-    # "I": "Romance",
-    # "J": "History",
-    # "미분류": "미분류"
+    # "A": "① [환경/기후재난/재난]",
+    # "B": "② [미스터리/스릴러/범죄/호러]",
+    # "C": "③ [SF/판타지]",
+    # "D": "④ [자본주의/노동/빈곤/개발/도시화/민주주의]",
+    # "E": "⑤ [이산/이주/난민/식민주의/제국주의/전쟁]",
+    # "F": "⑥ [LGBTQ/성평등/장애]",
+    # "G": "⑦ [종교/신화]",
+    # "H": "⑧ [관계(힐링)/가족/이웃/우정/성장]",
+    # "I": "⑨ [로맨스]",
+    # "J": "⑩ [역사]",
+    # "미분류":  "⑪ [기타]"
     # }
     genre_mapping = {
-    "A": "① [환경/기후재난/재난]",
-    "B": "② [미스터리/스릴러/범죄/호러]",
-    "C": "③ [SF/판타지]",
-    "D": "④ [자본주의/노동/빈곤/개발/도시화/민주주의]",
-    "E": "⑤ [이산/이주/난민/식민주의/제국주의/전쟁]",
-    "F": "⑥ [LGBTQ/성평등/장애]",
-    "G": "⑦ [종교/신화]",
-    "H": "⑧ [관계(힐링)/가족/이웃/우정/성장]",
-    "I": "⑨ [로맨스]",
-    "J": "⑩ [역사]",
-    "미분류":  "⑪ [기타]"
+        "A": "🌍 환경·재난",
+        "B": "🔍 미스터리·스릴러", 
+        "C": "🚀 SF·판타지",
+        "D": "🏛️ 사회·정치",
+        "E": "✈️ 이주·전쟁",
+        "F": "🏳️‍🌈 젠더·다양성",
+        "G": "⛪ 종교·신화",
+        "H": "👩🏿‍🤝‍👨🏻 관계·성장",
+        "I": "💕 로맨스",
+        "J": "📜 역사",
+        "미분류": "📚 기타"
     }
 
     # 🔥 역매핑 딕셔너리 추가 (한국어명 → 알파벳 코드)
@@ -1244,8 +1243,8 @@ def main():
                     st.info(f"평균 진출순서 (진출시차): {timing_text}")
                 # 네트워크 그래프 생성 및 표시
                 st.subheader("🕸️ 후속 진출 국가 네트워크")
-                st.write(f"  ᯓ ✈︎ **{start_country}에서 {selected_genre} 장르를 원작로 출간한 후 진출 경향성**")
-                
+                # st.write(f"  ᯓ ✈︎ **{start_country}에서 {selected_genre} 장르를 원작으로 출간한 후 진출 경향성**")
+                st.write(f"  ᯓ ✈︎ **{start_country}에서 {genre_mapping.get(selected_genre, selected_genre)} 장르를 원작으로 출간한 후 진출 경향성**")
                 # 경고메세지가 있으면 출력
                 if warning_message:
                     st.warning(warning_message)
@@ -1271,7 +1270,7 @@ def main():
                         📍 **순위:** 종합 점수를 기준으로 한 추천 우선순위
                         """)
                     
-                st.text(debug_stats) # 📊 종합점수 통계 -     
+                # st.text(debug_stats) # 📊 종합점수 통계 -     
                 st.markdown("---")
                 
                 # 추가 차트
@@ -1357,7 +1356,7 @@ def main():
         if analyzer.hub_scores:
             st.subheader("🏆 거점 국가 순위")
             st.markdown("◎ 원작 출간 후 평균적으로 많은 국가로 진출하는 거점 역할을 하는 국가들")
-            st.markdown("◎ 거점지수 산출: 베이지안 평균")
+            st.markdown("*거점지수 산출 공식: 베이지안 평균*")
             hub_df = pd.DataFrame([
                 {
                     '순위': i+1,

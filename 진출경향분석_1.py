@@ -206,7 +206,7 @@ class LiteratureExportAnalyzer:
         mu = total_subsequent_all / total_books_all if total_books_all > 0 else 0
         
         # Step 2: 임계치 설정
-        m = 10  # >> 임계치 # 점수 안정화 (조정) , 적은 표본은 전체 평균에 더 끌림
+        m = 50  # >> 임계치 # 점수 안정화 (조정) , 적은 표본은 전체 평균에 더 끌림
         
         # Step 3: 각 국가별 베이지안 평활화된 거점지수 계산
         for country, data in hub_analysis.items():
@@ -1277,7 +1277,7 @@ def main():
                 # 추가 차트
                 st.subheader("📈 추가 시각화")
                 
-                chart_tab1, chart_tab2, chart_tab3 = st.tabs(["원작 기준 진출 확률", "종합 분석", "시간순 분석"])
+                chart_tab1, chart_tab2 = st.tabs(["원작 기준 진출 확률", "종합 분석"])
 
                 
                 with chart_tab1:
@@ -1356,14 +1356,14 @@ def main():
     with analysis_tab1:
         if analyzer.hub_scores:
             st.subheader("🏆 거점 국가 순위")
-            st.markdown("*◎ 원작 출간 후 평균적으로 많은 국가로 진출하는 거점 역할을 하는 국가들*")
+            st.markdown("◎ 원작 출간 후 평균적으로 많은 국가로 진출하는 거점 역할을 하는 국가들")
             st.markdown("◎ 거점지수 산출: 베이지안 평균")
             hub_df = pd.DataFrame([
                 {
                     '순위': i+1,
                     '국가': country,
                     '거점 지수': f"{data['hub_index']:.2f}",
-                    # '원작 작품 수': data['total_books'],
+                    # '원작 작품 수': data['total_books'], # 확인
                     # '평균 후속 진출': f"{data['avg_subsequent']:.1f}개국"
                 }
                 for i, (country, data) in enumerate(

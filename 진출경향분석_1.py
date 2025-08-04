@@ -1343,7 +1343,8 @@ def main():
                 #         ])
                 #         # st.dataframe(timing_df, use_container_width=True)
             else:
-                st.warning(f"⚠️ {start_country}에서 {selected_genre} 장르 출간 후 후속 진출 데이터가 충분하지 않습니다.")
+                # st.warning(f"⚠️ {start_country}에서 {selected_genre} 장르 출간 후 후속 진출 데이터가 충분하지 않습니다.")
+                st.warning(f"⚠️ {start_country}에서 {genre_mapping.get(selected_genre, selected_genre)} 장르 출간 후 후속 진출 데이터가 충분하지 않습니다.")
                 st.info("다른 국가나 장르를 선택해보세요.")
     
     # 전체 분석 결과

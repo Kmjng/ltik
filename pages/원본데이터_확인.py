@@ -104,6 +104,11 @@ def fetch_literature_data(start_date, end_date, original_filter='all'):
             connection.close()
 
 def main():
+    st.set_page_config(
+        page_title="문학 도서 데이터 조회",
+        layout="wide",  # 이게 핵심!
+        initial_sidebar_state="expanded"
+            )
     st.title("📚 문학 도서 데이터 조회")
     st.markdown("---")
     
@@ -185,7 +190,7 @@ def main():
         df = st.session_state.df_original.copy()
         
         # 기본 정보 표시
-        col1, col2, col3 = st.columns([3, 1, 1])  # 3:1:1 비율
+        col1, col2, col3 = st.columns([3, 2, 1])  # 3:1:1 비율
         with col1:
             query_info = st.session_state.query_info
             st.metric("조회 기간", f"{query_info['start_date']} ~ {query_info['end_date']}")

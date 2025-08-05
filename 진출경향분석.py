@@ -56,7 +56,7 @@ class LiteratureExportAnalyzer:
         self.transition_matrix = {}
         self.genre_transition_matrix = {}
         
-    def load_data_from_db(self, host, database, user, password):
+    def load_data_from_db(self, host, database, user, password, start_date=None, end_date=None):
         """DB에서 데이터 로드 및 전처리"""
         try:
             connection = mysql.connector.connect(
@@ -67,11 +67,23 @@ class LiteratureExportAnalyzer:
             )
             
             if connection.is_connected():
-                # SQL 쿼리 (테이블명과 컬럼명은 실제 DB에 맞게 수정)
-                query = """
+                # 기본 쿼리
+                base_query = """
                 SELECT book_id, 발간일, genre1, genre2, genre3, genre4, 국가, 원작여부
                 FROM literature_books
                 """
+                
+                # 날짜 필터 조건 추가
+                where_conditions = []
+                if start_date:
+                    where_conditions.append(f"발간일 >= '{start_date}'")
+                if end_date:
+                    where_conditions.append(f"발간일 <= '{end_date}'")
+                
+                if where_conditions:
+                    query = base_query + " WHERE " + " AND ".join(where_conditions)
+                else:
+                    query = base_query
                 
                 self.df = pd.read_sql(query, connection)
                 
@@ -879,6 +891,16 @@ class LiteratureExportAnalyzer:
 
 # 메인 앱
 def main():
+    #  🔐 비밀번호 입력
+    secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
+                                    placeholder='비밀번호를 입력해주세요.',
+                                    type="password")
+    
+    # 비밀번호 확인
+    if secret_key_user != st.secrets.get("app_password", "your_password"):
+        st.warning("올바른 비밀번호를 입력해주세요.")
+        st.stop()
+    
     import plotly.graph_objects as go
     import pandas as pd
     st.markdown(f"""
@@ -895,11 +917,32 @@ def main():
 
 
     # 사이드바
-    st.sidebar.markdown("***")  
+    # st.sidebar.markdown("***")  
     st.sidebar.header("⚙️ 데이터 로딩")
+    
+    # 기간 설정 추가
+    st.sidebar.subheader("📅 분석 기간 설정")
+    col1, col2 = st.sidebar.columns(2)
+
+    with col1:
+        start_date = st.date_input(
+            "시작일",
+            value=datetime(2015, 1, 1),  # 기본값: 2015년 1월 1일
+            help="분석할 데이터의 시작 날짜"
+        )
+
+    with col2:
+        end_date = st.date_input(
+            "종료일", 
+            value=datetime.now(),  # 기본값: 현재 날짜
+            help="분석할 데이터의 종료 날짜"
+        )
+
     # 데이터 로드 버튼
     if st.sidebar.button("🔄 데이터 불러오기", type="primary"):
         st.session_state.load_data = True
+        st.session_state.start_date = start_date
+        st.session_state.end_date = end_date
 
     # 파일 경로 설정
     
@@ -915,25 +958,36 @@ def main():
     if 'data_loaded_page2' not in st.session_state:
         st.session_state.data_loaded_page2 = False
 
-    # 데이터 로드 (변경)
-    if not st.session_state.data_loaded_page2:  # ← analyzer.df is None에서 변경
+    # 데이터 로드
+    if not st.session_state.data_loaded_page2:
         if st.session_state.get('load_data', False):
             with st.spinner("DB에서 데이터 로딩 중..."):
-                success = analyzer.load_data_from_db(DB_HOST, DB_NAME, DB_USER, DB_PASSWORD)
+                # 날짜 파라미터 전달
+                start_date = st.session_state.get('start_date')
+                end_date = st.session_state.get('end_date')
+                
+                success = analyzer.load_data_from_db(
+                    DB_HOST, DB_NAME, DB_USER, DB_PASSWORD,
+                    start_date=start_date.strftime('%Y-%m-%d') if start_date else None,
+                    end_date=end_date.strftime('%Y-%m-%d') if end_date else None
+                )
+                
                 if success:
-
-                    # st.success(f"✅ DB 데이터 로드 완료: {len(analyzer.df):,}행")
+                    # 선택된 기간 정보 표시
+                    if start_date and end_date:
+                        st.success(f"✅ DB 데이터 로드 완료 (기간: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')})")
+                    else:
+                        st.success(f"✅ DB 데이터 로드 완료")
+                        
                     original_count = len(analyzer.df[analyzer.df['원작여부'] == 'original'])
-                    # st.success(f"✅ 원작 출간 기록: {original_count:,}건")
                     analyzer.analyze_all()
-                    # st.success("✅ 원작 기준 분석 완료")
-                    st.session_state.data_loaded_page2 = True  # 페이지2 로드 완료 플래그 (추가)
-                    st.session_state.load_data = False  # 플래그 리셋
+                    st.session_state.data_loaded_page2 = True
+                    st.session_state.load_data = False
                 else:
                     st.session_state.load_data = False
                     st.stop()
         else: 
-            st.info("👆 사이드바에서 '데이터 불러오기' 버튼을 클릭하세요.")
+            st.info("👆 사이드바에서 데이터 기간을 설정하고 '데이터 불러오기' 버튼을 클릭하세요.")
             st.stop()
 
     # analyzer.df가 None인지 추가 체크 (추가)

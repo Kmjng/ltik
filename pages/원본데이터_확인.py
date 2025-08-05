@@ -26,7 +26,7 @@ def get_database_connection():
         st.error(f"데이터베이스 연결 오류: {e}")
         return None
 
-def fetch_literature_data(start_date, end_date):
+def fetch_literature_data(start_date, end_date, original_filter='all'):
     """지정된 기간의 문학 도서 데이터 조회"""
     connection = get_database_connection()
     if connection is None:
@@ -35,15 +35,23 @@ def fetch_literature_data(start_date, end_date):
     try:
         cursor = connection.cursor()
         
-        query = """
-        SELECT id, year, 원작_제목, 에디션_제목, 작가명, `ISBN(13)`, ASIN, 
-               유형, 출판사명, 언어, 발간일, 수집일자,  URL, 국가, 원작여부
-        FROM literature_books 
-        WHERE 원작여부 = 'original' 
-        AND 발간일 BETWEEN %s AND %s
-        ORDER BY 발간일 DESC
-        """
+        # 원작여부 필터 조건 추가
+        if original_filter == 'original':
+            original_condition = "AND 원작여부 = 'original'"
+        elif original_filter == 'edition':
+            original_condition = "AND 원작여부 = 'edition'"
+        else:  # 'all'
+            original_condition = ""
         
+        query = f"""
+            SELECT id, year, 원작_제목, 에디션_제목, 작가명, `ISBN(13)`, ASIN, 
+                유형, 출판사명, 언어, 발간일, 수집일자,  URL, 국가, 원작여부, genre1, genre2, genre3, genre4
+            FROM literature_books 
+            WHERE 발간일 BETWEEN %s AND %s
+            {original_condition}
+            ORDER BY 발간일 DESC
+            """
+            
         cursor.execute(query, (start_date, end_date))
         results = cursor.fetchall()
         
@@ -67,6 +75,17 @@ def main():
     st.title("📚 문학 도서 데이터 조회")
     st.markdown("---")
     
+    # 🔐 비밀번호 입력
+    secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
+                                    placeholder='비밀번호를 입력해주세요.',
+                                    type="password")
+    
+    # 비밀번호 확인
+    if secret_key_user != st.secrets.get("app_password", "your_password"):
+        st.warning("올바른 비밀번호를 입력해주세요.")
+        st.stop()
+    
+
     # 세션 상태 초기화
     if 'data_loaded' not in st.session_state:
         st.session_state.data_loaded = False
@@ -77,7 +96,13 @@ def main():
     
     # 사이드바에 기간 설정
     st.sidebar.header("조회 조건 설정")
-    
+    # 원작여부 선택 추가
+    original_filter = st.sidebar.selectbox(
+        "원작여부 선택",
+        options=['all', 'original', 'edition'],
+        format_func=lambda x: {'all': '전체', 'original': '원작', 'edition': '에디션'}[x],
+        help="조회할 데이터 유형을 선택하세요"
+    )
     # 날짜 입력
     col1, col2 = st.sidebar.columns(2)
     with col1:
@@ -102,7 +127,7 @@ def main():
     # 조회 버튼
     if st.sidebar.button("데이터 조회", type="primary"):
         with st.spinner("데이터를 조회하는 중..."):
-            df = fetch_literature_data(start_date, end_date)
+            df = fetch_literature_data(start_date, end_date, original_filter) 
             
             if df is not None and not df.empty:
                 # 세션 상태에 데이터 저장
@@ -111,6 +136,7 @@ def main():
                 st.session_state.query_info = {
                     'start_date': start_date,
                     'end_date': end_date,
+                    'original_filter': original_filter,  # 필터 정보도 저장
                     'total_count': len(df)
                 }
                 st.success(f"총 {len(df)}건의 데이터를 조회했습니다.")
@@ -127,7 +153,7 @@ def main():
         df = st.session_state.df_original.copy()
         
         # 기본 정보 표시
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3 = st.columns([3, 1, 1])  # 3:1:1 비율
         with col1:
             query_info = st.session_state.query_info
             st.metric("조회 기간", f"{query_info['start_date']} ~ {query_info['end_date']}")
@@ -155,11 +181,23 @@ def main():
                         df = df[df['국가'] == selected_country]
             
             with filter_col2:
-                if '유형' in df.columns:
-                    types = ['전체'] + sorted(df['유형'].dropna().unique().tolist())
-                    selected_type = st.selectbox("유형 선택", types)
-                    if selected_type != '전체':
-                        df = df[df['유형'] == selected_type]
+                # 장르 컬럼들을 합쳐서 유니크한 장르 목록 생성
+                if any(col in df.columns for col in ['genre1', 'genre2', 'genre3', 'genre4']):
+                    all_genres = set()
+                    for genre_col in ['genre1', 'genre2', 'genre3', 'genre4']:
+                        if genre_col in df.columns:
+                            all_genres.update(df[genre_col].dropna().unique())
+                    
+                    genres = ['전체'] + sorted(list(all_genres))
+                    selected_genre = st.selectbox("장르 선택", genres)
+                    
+                    if selected_genre != '전체':
+                        # 4개 장르 컬럼 중 하나라도 선택한 장르와 일치하는 행 필터링
+                        genre_mask = False
+                        for genre_col in ['genre1', 'genre2', 'genre3', 'genre4']:
+                            if genre_col in df.columns:
+                                genre_mask = genre_mask | (df[genre_col] == selected_genre)
+                        df = df[genre_mask]
         
         # 페이지네이션을 위한 설정
         items_per_page = st.select_slider(
@@ -229,12 +267,11 @@ def main():
         st.markdown("""
         1. **기간 설정**: 좌측 사이드바에서 조회하고 싶은 기간을 설정하세요.
         2. **데이터 조회**: '데이터 조회' 버튼을 클릭하여 데이터를 불러옵니다.
-        3. **필터링**: 추가 필터링 옵션을 사용하여 국가나 유형별로 데이터를 정렬할 수 있습니다.
+        3. **필터링**: 추가 필터링 옵션을 사용하여 데이터를 정렬할 수 있습니다.
         4. **다운로드**: 조회된 데이터를 Excel 파일로 다운로드할 수 있습니다.
         
         
         **주의사항**: 
-        - 원작여부가 'original'인 데이터만 조회됩니다.
         - 발간일을 기준으로 기간 필터링이 적용됩니다.
         """)
 

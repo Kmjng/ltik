@@ -60,6 +60,38 @@ def fetch_literature_data(start_date, end_date, original_filter='all'):
         
         # DataFrame 생성
         df = pd.DataFrame(results, columns=column_names)
+        genre_columns = ['genre1', 'genre2', 'genre3', 'genre4']
+
+        # 장르 코드 매핑 (예시)
+        genre_mapping = {
+                "A": "🌍 환경·재난",
+                "B": "🔍 미스터리·스릴러", 
+                "C": "🚀 SF·판타지",
+                "D": "🏛️ 사회·정치",
+                "E": "✈️ 이주·전쟁",
+                "F": "🏳️‍🌈 젠더·다양성",
+                "G": "⛪ 종교·신화",
+                "H": "👩🏿‍🤝‍👨🏻 관계·성장",
+                "I": "💕 로맨스",
+                "J": "📜 역사",
+                "미분류": "📚 기타"
+            }
+
+        # 매핑을 적용하여 장르 변환
+        df['장르'] = df[genre_columns].apply(
+            lambda row: ', '.join([
+                genre_mapping.get(str(val), str(val)) 
+                for val in row 
+                if pd.notna(val) and val != '' and str(val).strip()
+            ]), 
+            axis=1
+        )
+
+        # 기존 genre 칼럼들 제거
+        df = df.drop(columns=genre_columns)
+
+        df = df[['year', '국가', '원작_제목', '작가명', '발간일', 'ISBN(13)', 'ASIN', 
+                 '출판사명', '언어',  '장르', 'URL', '원작여부']]
         
         return df
         

@@ -219,22 +219,21 @@ def main():
             
             with filter_col2:
                 # 장르 컬럼들을 합쳐서 유니크한 장르 목록 생성
-                if any(col in df.columns for col in ['genre1', 'genre2', 'genre3', 'genre4']):
+                if '장르' in df.columns:
+                    # 장르 컬럼에서 모든 개별 장르 추출 (콤마로 구분된 경우 고려)
                     all_genres = set()
-                    for genre_col in ['genre1', 'genre2', 'genre3', 'genre4']:
-                        if genre_col in df.columns:
-                            all_genres.update(df[genre_col].dropna().unique())
+                    for genre_str in df['장르'].dropna():
+                        if genre_str:  # 빈 문자열이 아닌 경우
+                            # 콤마로 구분된 장르들을 분리
+                            genres_in_row = [g.strip() for g in str(genre_str).split(',')]
+                            all_genres.update(genres_in_row)
                     
                     genres = ['전체'] + sorted(list(all_genres))
                     selected_genre = st.selectbox("장르 선택", genres)
                     
                     if selected_genre != '전체':
-                        # 4개 장르 컬럼 중 하나라도 선택한 장르와 일치하는 행 필터링
-                        genre_mask = False
-                        for genre_col in ['genre1', 'genre2', 'genre3', 'genre4']:
-                            if genre_col in df.columns:
-                                genre_mask = genre_mask | (df[genre_col] == selected_genre)
-                        df = df[genre_mask]
+                        # 선택한 장르가 포함된 행만 필터링
+                        df = df[df['장르'].str.contains(selected_genre, na=False, regex=False)]
         
         # 페이지네이션을 위한 설정
         items_per_page = st.select_slider(

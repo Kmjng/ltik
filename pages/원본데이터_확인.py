@@ -221,7 +221,7 @@ def main():
     with col1:
         start_date = st.date_input(
             "시작일", 
-            value=date(2020, 1, 1),
+            value=date(2015, 1, 1),
             help="조회 시작 날짜를 선택하세요"
         )
     

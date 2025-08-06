@@ -1292,9 +1292,15 @@ def main():
                 # 🔴 NEW: 시간순 진출 패턴 표시 추가
                 if time_progression:
                     st.subheader("⏰ 시간순 진출 패턴")
-                    timing_text = " → ".join([f"{country} ({data['avg_days']:.0f}일)" 
-                                            for country, data in time_progression[:5]])
-                    st.info(f"평균 진출순서 (진출시차): {timing_text}")
+                    # 추천 국가들만 필터링
+                    recommended_countries = [rec['country'] for rec in recommendations]
+                    filtered_progression = [(country, data) for country, data in time_progression 
+                                        if country in recommended_countries]
+                    if filtered_progression:
+                        timing_text = " → ".join([f"{country} ({data['avg_days']:.0f}일)" 
+                                                for country, data in filtered_progression[:5]])
+                        st.info(f"평균 진출순서 (진출시차): {timing_text}")
+                        
                 # 네트워크 그래프 생성 및 표시
                 st.subheader("🕸️ 후속 진출 국가 네트워크")
                 # st.write(f"  ᯓ ✈︎ **{start_country}에서 {selected_genre} 장르를 원작으로 출간한 후 진출 경향성**")

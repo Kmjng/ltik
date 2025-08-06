@@ -1210,19 +1210,19 @@ def main():
     # 사이드바
 
     st.sidebar.markdown("---")
-    # 가중치 설정 추가
-    st.sidebar.subheader("⚖️ 종합점수 가중치 설정")
-    st.sidebar.markdown("**🕸️** **후속 진출 국가 네트워크**의 종합점수에 가중치를 설정합니다.")
-    prob_weight = st.sidebar.slider("진출 확률 가중치", 0.0, 1.0, 0.7, 0.1)
-    genre_weight = st.sidebar.slider("장르 적합도 가중치", 0.0, 1.0, 0.2, 0.1)
-    conf_weight = st.sidebar.slider("신뢰도 가중치", 0.0, 1.0, 0.1, 0.1)
+    # # 가중치 설정 추가
+    # st.sidebar.subheader("⚖️ 종합점수 가중치 설정")
+    # st.sidebar.markdown("**🕸️** **후속 진출 국가 네트워크**의 종합점수에 가중치를 설정합니다.")
+    # prob_weight = st.sidebar.slider("진출 확률 가중치", 0.0, 1.0, 0.7, 0.1)
+    # genre_weight = st.sidebar.slider("장르 적합도 가중치", 0.0, 1.0, 0.2, 0.1)
+    # conf_weight = st.sidebar.slider("신뢰도 가중치", 0.0, 1.0, 0.1, 0.1)
 
-    # 가중치 합계 확인
-    total_weight = prob_weight + genre_weight + conf_weight
-    if total_weight != 1.0:
-        st.sidebar.warning(f"⚠️ 가중치 합계: {total_weight:.1f} (권장: 1.0)")
-    else:
-        st.sidebar.success("✅ 가중치 합계: 1.0")
+    # # 가중치 합계 확인
+    # total_weight = prob_weight + genre_weight + conf_weight
+    # if total_weight != 1.0:
+    #     st.sidebar.warning(f"⚠️ 가중치 합계: {total_weight:.1f} (권장: 1.0)")
+    # else:
+    #     st.sidebar.success("✅ 가중치 합계: 1.0")
 
 
     # ------------- #
@@ -1290,14 +1290,17 @@ def main():
             # st.write(df)
             
             # 후속 국가 추천
+            # recommendations, warning_message, debug_stats, time_progression = analyzer.recommend_next_countries(
+            #         start_country, selected_genre, genre_mapping,
+            #         prob_weight=prob_weight, 
+            #         genre_weight=genre_weight, 
+            #         conf_weight=conf_weight,
+            #         top_k=8
+            #     )
             recommendations, warning_message, debug_stats, time_progression = analyzer.recommend_next_countries(
                     start_country, selected_genre, genre_mapping,
-                    prob_weight=prob_weight, 
-                    genre_weight=genre_weight, 
-                    conf_weight=conf_weight,
                     top_k=8
                 )
-            
             # 시작 국가 정보 표시 (화면에는 장르명 표시)
             st.subheader(f"🌍 {start_country} » 📍 {selected_genre_name} 장르")
             

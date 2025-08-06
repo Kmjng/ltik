@@ -311,7 +311,7 @@ class LiteratureExportAnalyzer:
                         self.transition_matrix[from_country][to_country] = count / total
 
     def calculate_genre_transition_matrix(self):
-        """장르별 원작 기준 국가 간 전이 확률 계산 - 다중 장르 지원"""
+        """장르별 원작 기준 국가 간 전이 확률 계산 - 다중 장르 지원 """
         genre_transitions = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         
         for book_id, group in self.df.groupby('book_id'):
@@ -1299,8 +1299,8 @@ def main():
                     if filtered_progression:
                         timing_text = " → ".join([f"{country} ({data['avg_days']:.0f}일)" 
                                                 for country, data in filtered_progression[:5]])
-                        st.info(f"평균 진출순서 (진출시차): {timing_text}")
-                        
+                        st.info(f"평균 진출순서 (진출시차): {timing_text}")   
+
                 # 네트워크 그래프 생성 및 표시
                 st.subheader("🕸️ 후속 진출 국가 네트워크")
                 # st.write(f"  ᯓ ✈︎ **{start_country}에서 {selected_genre} 장르를 원작으로 출간한 후 진출 경향성**")

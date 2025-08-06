@@ -909,7 +909,7 @@ def main():
             <h1>문학 작품 해외 수출 추천 시스템</h1>
         </div>
         """, unsafe_allow_html=True)
-    st.markdown("👀**원작 출간을 기준으로 후속 진출 국가 및 장르를 분석합니다.**")
+    st.markdown("👀**원작의 후속 진출 국가 및 장르를 분석합니다.**")
     st.caption(f"*데이터 출처: Goodreads, GoogleSearch*")
 
     st.markdown("---")
@@ -1016,7 +1016,7 @@ def main():
         
         if wave_df is not None and len(wave_df) > 0:
             st.header("0️⃣ 확산 패턴 시각화")
-            st.markdown("✨도서 출간 이후 확산 패턴을 다이어그램으로 확인하세요.")
+            st.markdown("✨도서 출간 후 확산 패턴을 다이어그램으로 확인하세요.")
             
             try:
                 # st.success(f"✅ Wave 데이터 로드 완료: {len(wave_df):,}행")
@@ -1416,7 +1416,7 @@ def main():
     with analysis_tab1:
         if analyzer.hub_scores:
             st.subheader("🏆 거점 국가 순위")
-            st.markdown("◎ 원작 출간 후 평균적으로 많은 국가로 진출하는 거점 역할을 하는 국가들")
+            st.markdown("◎ 원작 출간 후 거점 역할을 하는 국가들")
             st.markdown("*거점지수 산출 공식: 베이지안 평균*")
             hub_df = pd.DataFrame([
                 {

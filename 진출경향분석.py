@@ -1020,7 +1020,7 @@ def main():
         wave_df = analyzer.load_wave_data_from_db(DB_HOST, DB_NAME, DB_USER, DB_PASSWORD)
         
         if wave_df is not None and len(wave_df) > 0:
-            st.header("0️1️⃣ 확산 패턴 분석")
+            st.header("1️⃣ 확산 패턴 분석")
             st.markdown("✨도서 출간 후 확산 패턴을 다이어그램으로 확인하세요.")
             
             try:
@@ -1106,6 +1106,7 @@ def main():
         "J": "J - 역사",
         "미분류": "기타"
     }
+
     # 🔼 여기까지 추가
 
     # # 장르별 국가 진출 현황

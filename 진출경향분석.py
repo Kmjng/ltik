@@ -360,7 +360,7 @@ class LiteratureExportAnalyzer:
                     for to_country, count in genre_transitions[genre][from_country].items():
                         probability = count / total
                         
-                        if count >= 1:  # 최소 1회 이상 전이
+                        if count >= 3:  # 전이 횟수 최소값 !!
                             self.genre_transition_matrix[genre][from_country][to_country] = {
                                 'probability': probability,
                                 'count': count,
@@ -398,6 +398,11 @@ class LiteratureExportAnalyzer:
                 count = data['count']
                 total_transitions = data['total_transitions']
                 
+
+                # 🔴 NEW: 전이 횟수가 5회 미만이면 제외
+                if count < 3: # !! 
+                    continue
+
                 # 신뢰도 계산 (전이 횟수 기반)
                 confidence = min(count / 12, 1.0)  # 24회 이상이면 최대 신뢰도
                 
@@ -587,7 +592,7 @@ class LiteratureExportAnalyzer:
                 timing_rank = rec.get('timing_rank', '?')
                 timing_info = f"""
             ⏰ 평균 진출 시점: {avg_days:.0f}일 후
-            🏃 출간 시점 순위: {timing_rank}위"""
+            """
 
             hover_text = f"""
             ✈︎ {rec['country']}
@@ -601,15 +606,15 @@ class LiteratureExportAnalyzer:
             🎯 원작 기준 분석
             """
 
-            # 노드 라벨에도 출간 시점 순위 표시
-            label_text = f"{next_country}\n({final_score:.0f}점)"
-            if rec.get('timing_rank'):
-                label_text = f"{next_country}\n({final_score:.0f}점)\n⏰{rec['timing_rank']}순"
+            # # 노드 라벨에도 출간 시점 순위 표시
+            # label_text = f"{next_country}\n({final_score:.0f}점)"
+            # if rec.get('timing_rank'):
+            #     label_text = f"{next_country}\n({final_score:.0f}점)"
 
             # 노드 추가
             net.add_node(
                 next_country,
-                label=label_text,
+                # label=label_text,
                 color=color,
                 size=size,
                 title=hover_text,
@@ -927,7 +932,7 @@ def main():
     with col1:
         start_date = st.date_input(
             "시작일",
-            value=datetime(2015, 1, 1),  # 기본값: 2015년 1월 1일
+            value=datetime(2016, 1, 1),  # 기본값: 2015년 1월 1일
             help="분석할 데이터의 시작 날짜"
         )
 
@@ -1015,7 +1020,7 @@ def main():
         wave_df = analyzer.load_wave_data_from_db(DB_HOST, DB_NAME, DB_USER, DB_PASSWORD)
         
         if wave_df is not None and len(wave_df) > 0:
-            st.header("0️⃣ 확산 패턴 시각화")
+            st.header("0️1️⃣ 확산 패턴 분석")
             st.markdown("✨도서 출간 후 확산 패턴을 다이어그램으로 확인하세요.")
             
             try:
@@ -1090,122 +1095,109 @@ def main():
     st.markdown("---")
     # 🔼 여기까지 추가
 
-    # 장르별 국가 진출 현황
-    st.header("1️⃣ 장르별 국가 진출 현황 확인")
-    st.markdown("✨분석하고 싶은 장르를 선택하여 해당 장르의 **국가별 출간 건수**를 확인하세요.")
-    # 장르 체크박스
-    available_genres = sorted(set().union(*[analyzer.df[f'genre{i}'].dropna().unique() for i in range(1, 5)]))
+    # # 장르별 국가 진출 현황
+    # st.header("1️⃣ 장르별 국가 진출 현황 확인")
+    # st.markdown("✨분석하고 싶은 장르를 선택하여 해당 장르의 **국가별 출간 건수**를 확인하세요.")
+    # # 장르 체크박스
+    # available_genres = sorted(set().union(*[analyzer.df[f'genre{i}'].dropna().unique() for i in range(1, 5)]))
 
     # genre_mapping = {
-    # "A": "① [환경/기후재난/재난]",
-    # "B": "② [미스터리/스릴러/범죄/호러]",
-    # "C": "③ [SF/판타지]",
-    # "D": "④ [자본주의/노동/빈곤/개발/도시화/민주주의]",
-    # "E": "⑤ [이산/이주/난민/식민주의/제국주의/전쟁]",
-    # "F": "⑥ [LGBTQ/성평등/장애]",
-    # "G": "⑦ [종교/신화]",
-    # "H": "⑧ [관계(힐링)/가족/이웃/우정/성장]",
-    # "I": "⑨ [로맨스]",
-    # "J": "⑩ [역사]",
-    # "미분류":  "⑪ [기타]"
+    #     "A": "A - 환경·재난",
+    #     "B": "B - 미스터리·스릴러", 
+    #     "C": "C - SF·판타지",
+    #     "D": "D - 사회·정치",
+    #     "E": "E - 이주·전쟁",
+    #     "F": "F - 젠더·다양성",
+    #     "G": "G - 종교·신화",
+    #     "H": "H - 관계·성장",
+    #     "I": "I - 로맨스",
+    #     "J": "J - 역사",
+    #     "미분류": "기타"
     # }
-    genre_mapping = {
-        "A": "🌍 환경·재난",
-        "B": "🔍 미스터리·스릴러", 
-        "C": "🚀 SF·판타지",
-        "D": "🏛️ 사회·정치",
-        "E": "✈️ 이주·전쟁",
-        "F": "🏳️‍🌈 젠더·다양성",
-        "G": "⛪ 종교·신화",
-        "H": "👩🏿‍🤝‍👨🏻 관계·성장",
-        "I": "💕 로맨스",
-        "J": "📜 역사",
-        "미분류": "📚 기타"
-    }
 
-    # 🔥 역매핑 딕셔너리 추가 (한국어명 → 알파벳 코드)
-    reverse_genre_mapping = {v: k for k, v in genre_mapping.items()}
+    # # 🔥 역매핑 딕셔너리 추가 (한국어명 → 알파벳 코드)
+    # reverse_genre_mapping = {v: k for k, v in genre_mapping.items()}
 
-    # available_genres를 실제 장르명으로 변환
-    available_genres = [genre_mapping.get(code, code) for code in available_genres]
+    # # available_genres를 실제 장르명으로 변환
+    # available_genres = [genre_mapping.get(code, code) for code in available_genres]
 
-    st.subheader("📚 장르 선택")
+    # st.subheader("📚 장르 선택")
 
-    selected_genres = st.multiselect(
-    "확인할 장르를 선택하세요 (여러 개 선택 가능)",
-    available_genres,
-    default=[],
-    help="드롭다운에서 여러 장르를 선택할 수 있습니다. 최대한 많이 선택해도 됩니다."
-    )
+    # selected_genres = st.multiselect(
+    # "확인할 장르를 선택하세요 (여러 개 선택 가능)",
+    # available_genres,
+    # default=[],
+    # help="드롭다운에서 여러 장르를 선택할 수 있습니다. 최대한 많이 선택해도 됩니다."
+    # )
 
-    # 선택된 장르 표시
-    if selected_genres:
-        st.success(f"✅ 선택된 장르 ({len(selected_genres)}개): {', '.join(selected_genres)}")
+    # # 선택된 장르 표시
+    # if selected_genres:
+    #     st.success(f"✅ 선택된 장르 ({len(selected_genres)}개): {', '.join(selected_genres)}")
 
-    # 선택된 장르 분석
-    if selected_genres:
-        # 🔥 한국어 장르명을 알파벳 코드로 변환
-        selected_genre_codes = [reverse_genre_mapping.get(genre, genre) for genre in selected_genres]
+    # # 선택된 장르 분석
+    # if selected_genres:
+    #     # 🔥 한국어 장르명을 알파벳 코드로 변환
+    #     selected_genre_codes = [reverse_genre_mapping.get(genre, genre) for genre in selected_genres]
         
-        # 변환된 코드로 분석 실행
-        genre_country_df = analyzer.get_genre_country_stats(selected_genre_codes)
+    #     # 변환된 코드로 분석 실행
+    #     genre_country_df = analyzer.get_genre_country_stats(selected_genre_codes)
         
-        if not genre_country_df.empty:
-            st.subheader(f"📈 선택된 장르의 **국가별 출간** 건수")
+    #     if not genre_country_df.empty:
+    #         st.subheader(f"📈 선택된 장르의 **국가별 출간** 건수")
             
-            if len(selected_genres) == 1:
-                # 단일 장르 처리
-                genre_code = selected_genre_codes[0]  # 코드 사용
-                genre_data = genre_country_df[genre_country_df['genre'] == genre_code].nlargest(15, 'count')
+    #         if len(selected_genres) == 1:
+    #             # 단일 장르 처리
+    #             genre_code = selected_genre_codes[0]  # 코드 사용
+    #             genre_data = genre_country_df[genre_country_df['genre'] == genre_code].nlargest(15, 'count')
                 
-                fig = px.bar(
-                    genre_data,
-                    x='country',
-                    y='count',
-                    title=f'🕮 {selected_genres[0]} 장르의 국가별 출간 건수 (상위 15개국)',  # 한국어명 표시
-                    labels={'country': '국가', 'count': '출간 건수'},
-                    color='count',
-                    color_continuous_scale='viridis'
-                )
-                fig.update_xaxes(tickangle=45)
-                fig.update_layout(height=500)
-                st.plotly_chart(fig, use_container_width=True)
+    #             fig = px.bar(
+    #                 genre_data,
+    #                 x='country',
+    #                 y='count',
+    #                 title=f'🕮 {selected_genres[0]} 장르의 국가별 출간 건수 (상위 15개국)',  # 한국어명 표시
+    #                 labels={'country': '국가', 'count': '출간 건수'},
+    #                 color='count',
+    #                 color_continuous_scale='viridis'
+    #             )
+    #             fig.update_xaxes(tickangle=45)
+    #             fig.update_layout(height=500)
+    #             st.plotly_chart(fig, use_container_width=True)
                 
-            elif len(selected_genres) > 1:
-                # 다중 장르 처리
-                comparison_data = []
-                for i, genre_code in enumerate(selected_genre_codes):
-                    top_countries = genre_country_df[
-                        genre_country_df['genre'] == genre_code
-                    ].nlargest(10, 'count')
+    #         elif len(selected_genres) > 1:
+    #             # 다중 장르 처리
+    #             comparison_data = []
+    #             for i, genre_code in enumerate(selected_genre_codes):
+    #                 top_countries = genre_country_df[
+    #                     genre_country_df['genre'] == genre_code
+    #                 ].nlargest(10, 'count')
                     
-                    # 🔥 차트에서는 한국어명으로 표시하기 위해 변환
-                    top_countries = top_countries.copy()
-                    top_countries['genre'] = selected_genres[i]  # 한국어명으로 변경
+    #                 # 🔥 차트에서는 한국어명으로 표시하기 위해 변환
+    #                 top_countries = top_countries.copy()
+    #                 top_countries['genre'] = selected_genres[i]  # 한국어명으로 변경
                     
-                    comparison_data.extend(top_countries.to_dict('records'))
+    #                 comparison_data.extend(top_countries.to_dict('records'))
                 
-                comparison_df = pd.DataFrame(comparison_data)
+    #             comparison_df = pd.DataFrame(comparison_data)
                 
-                fig = px.bar(
-                    comparison_df,
-                    x='country',
-                    y='count',
-                    color='genre',
-                    title=f'선택된 장르들의 국가별 출간 건수 비교 (각 장르별 상위 10개국)',
-                    labels={'country': '국가', 'count': '출간 건수', 'genre': '장르'},
-                    barmode='group'
-                )
-                fig.update_xaxes(tickangle=45)
-                fig.update_layout(height=600)
-                st.plotly_chart(fig, use_container_width=True)
+    #             fig = px.bar(
+    #                 comparison_df,
+    #                 x='country',
+    #                 y='count',
+    #                 color='genre',
+    #                 title=f'선택된 장르들의 국가별 출간 건수 비교 (각 장르별 상위 10개국)',
+    #                 labels={'country': '국가', 'count': '출간 건수', 'genre': '장르'},
+    #                 barmode='group'
+    #             )
+    #             fig.update_xaxes(tickangle=45)
+    #             fig.update_layout(height=600)
+    #             st.plotly_chart(fig, use_container_width=True)
         
-        else:
-            st.warning("⚠️ 선택된 장르에 대한 데이터가 없습니다.")
+    #     else:
+    #         st.warning("⚠️ 선택된 장르에 대한 데이터가 없습니다.")
 
 
 
-    st.markdown("---")
+    # st.markdown("---")
     
     # 원작 기준 추천 시스템        
     st.header("2️⃣ 후속 진출 국가 추천")
@@ -1253,8 +1245,39 @@ def main():
         st.caption(f"*장르 출처: GoogleSearch*")
 
     with col2:
-        available_countries = sorted(analyzer.df['국가'].unique())
-        start_country = st.selectbox("🚀 원작 출간 국가 선택", available_countries)
+        # 🔴 수정된 부분: 선택된 장르의 작품 개수가 많은 국가 순으로 정렬
+        
+        # 해당 장르를 포함한 원작 작품들 필터링
+        original_df = analyzer.df[analyzer.df['원작여부'] == 'original']
+        genre_books = analyzer.get_books_by_genre(selected_genre)
+        genre_original_books = genre_books[genre_books['원작여부'] == 'original']
+        
+        # 국가별 해당 장르 원작 작품 수 계산
+        country_counts = genre_original_books['국가'].value_counts()
+        
+        # 작품이 있는 국가들을 작품 수 순으로 정렬
+        countries_with_works = country_counts.index.tolist()
+        
+        # 해당 장르 작품이 없는 국가들도 포함 (알파벳 순으로 추가)
+        all_countries = set(analyzer.df['국가'].unique())
+        countries_without_works = sorted(all_countries - set(countries_with_works))
+        
+        # 최종 국가 목록: 작품 수 많은 순 + 작품 없는 국가들 (알파벳 순)
+        available_countries = countries_with_works + countries_without_works
+        
+        # selectbox에 국가별 작품 수 표시
+        country_labels = []
+        for country in available_countries:
+            count = country_counts.get(country, 0)
+            if count > 0:
+                country_labels.append(f"{country} ({count}개)")
+            else:
+                country_labels.append(f"{country} (0개)")
+        
+        selected_country_label = st.selectbox("🚀 원작 출간 국가 선택", country_labels)
+        
+        # 실제 국가명 추출 (괄호 앞부분)
+        start_country = selected_country_label.split(' (')[0]
 
     # 추천 실행
     if st.button("🔍 분석 실행", type="primary"):
@@ -1334,7 +1357,7 @@ def main():
                 st.markdown("---")
                 
                 # 추가 차트
-                st.subheader("📈 추가 시각화")
+                st.subheader("📈 추가 분석")
                 
                 chart_tab1, chart_tab2 = st.tabs(["원작 기준 진출 확률", "종합 분석"])
 
@@ -1345,7 +1368,8 @@ def main():
                     fig = px.bar(
                         x=[rec['country'] for rec in chart_data],
                         y=[rec['probability'] for rec in chart_data],
-                        title=f"{start_country}에서 {selected_genre} 출간 후 후속 진출 확률",
+                        # title=f"{start_country}에서 {selected_genre} 출간 후 후속 진출 확률",
+                        title=f"{start_country}에서 {genre_mapping.get(selected_genre, selected_genre)} 장르의 후속 진출 확률",
                         labels={'x': '후속 진출 국가', 'y': '진출 확률 (%)'},
                         color=[rec['probability'] for rec in chart_data],
                         color_continuous_scale="viridis"
@@ -1374,104 +1398,78 @@ def main():
                     fig.update_layout(height=400)
                     st.plotly_chart(fig, use_container_width=True)
 
-                # with chart_tab3:
-                #     if time_progression:
-                #         # 시간순 진출 막대 차트
-                #         timing_data = time_progression[:8]
-                #         fig = px.bar(
-                #             x=[country for country, _ in timing_data],
-                #             y=[data['avg_days'] for _, data in timing_data],
-                #             title=f"{start_country}에서 {selected_genre} 출간 후 평균(중앙값) 진출 시점",
-                #             labels={'x': '진출 국가', 'y': '평균 진출 시점 (일)'},
-                #             color=[data['avg_days'] for _, data in timing_data],
-                #             color_continuous_scale="viridis"
-                #         )
-                #         fig.update_layout(showlegend=False, height=400)
-                #         st.plotly_chart(fig, use_container_width=True)
-                        
-                #         # 상세 시간 정보 테이블
-                #         timing_df = pd.DataFrame([
-                #             {
-                #                 '순위': i+1,
-                #                 '국가': country,
-                #                 '평균 진출 시점': f"{data['avg_days']:.0f}일",
-                #                 '진출 건수': data['count'],
-                #                 '빠른 진출': f"{data['min_days']}일",
-                #                 '늦은 진출': f"{data['max_days']}일"
-                #             }
-                #             for i, (country, data) in enumerate(timing_data)
-                #         ])
-                #         # st.dataframe(timing_df, use_container_width=True)
+            
             else:
                 # st.warning(f"⚠️ {start_country}에서 {selected_genre} 장르 출간 후 후속 진출 데이터가 충분하지 않습니다.")
                 st.warning(f"⚠️ {start_country}에서 {genre_mapping.get(selected_genre, selected_genre)} 장르 출간 후 후속 진출 데이터가 충분하지 않습니다.")
                 st.info("다른 국가나 장르를 선택해보세요.")
     
-    # 전체 분석 결과
-    st.markdown("---")
-    st.header("📋 전체 분석 결과")
+    # # 전체 분석 결과
+    # st.markdown("---")
+    # st.header("📋 전체 분석 결과")
     
-    analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["원작 거점 국가", "장르별 분포", "국가별 분포"])
+    # # analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["원작 거점 국가", "장르별 분포", "국가별 분포"])
+    # analysis_tab2, analysis_tab3 = st.tabs(["원작 거점 국가", "장르별 분포", "국가별 분포"])
     
-    with analysis_tab1:
-        if analyzer.hub_scores:
-            st.subheader("🏆 거점 국가 순위")
-            st.markdown("◎ 원작 출간 후 거점 역할을 하는 국가들")
-            st.markdown("*거점지수 산출 공식: 베이지안 평균*")
-            hub_df = pd.DataFrame([
-                {
-                    '순위': i+1,
-                    '국가': country,
-                    '거점 지수': f"{data['hub_index']:.2f}",
-                    # '원작 작품 수': data['total_books'], # 확인
-                    # '평균 후속 진출': f"{data['avg_subsequent']:.1f}개국"
-                }
-                for i, (country, data) in enumerate(
-                    sorted(analyzer.hub_scores.items(), key=lambda x: x[1]['hub_index'], reverse=True)
-                )
-            ])
-            st.dataframe(hub_df, use_container_width=True)
+    # # with analysis_tab1:
+    # #     if analyzer.hub_scores:
+    # #         st.subheader("🏆 거점 국가 순위")
+    # #         st.markdown("◎ 원작 출간 후 거점 역할을 하는 국가들")
+    # #         st.markdown("*거점지수 산출 공식: 베이지안 평균*")
+    # #         hub_df = pd.DataFrame([
+    # #             {
+    # #                 '순위': i+1,
+    # #                 '국가': country,
+    # #                 '거점 지수': f"{data['hub_index']:.2f}",
+    # #                 # '원작 작품 수': data['total_books'], # 확인
+    # #                 # '평균 후속 진출': f"{data['avg_subsequent']:.1f}개국"
+    # #             }
+    # #             for i, (country, data) in enumerate(
+    # #                 sorted(analyzer.hub_scores.items(), key=lambda x: x[1]['hub_index'], reverse=True)
+    # #             )
+    # #         ])
+    # #         st.dataframe(hub_df, use_container_width=True)
     
-    with analysis_tab2:
-        st.subheader("📚 장르별 작품 분포")
+    # with analysis_tab2:
+    #     st.subheader("📚 장르별 작품 분포")
     
 
-        # 원작만 필터링한 후 장르 카운트
-        original_df = analyzer.df[analyzer.df['원작여부'] == 'original']
-        all_genre_counts = defaultdict(int)
-        for genre_col in analyzer.genre_columns:
-            genre_counts = original_df[genre_col].value_counts()  # ← 원작만 사용
-            for genre, count in genre_counts.items():
-                all_genre_counts[genre] += count
+    #     # 원작만 필터링한 후 장르 카운트
+    #     original_df = analyzer.df[analyzer.df['원작여부'] == 'original']
+    #     all_genre_counts = defaultdict(int)
+    #     for genre_col in analyzer.genre_columns:
+    #         genre_counts = original_df[genre_col].value_counts()  # ← 원작만 사용
+    #         for genre, count in genre_counts.items():
+    #             all_genre_counts[genre] += count
         
-        # 장르 코드를 장르명으로 변환
-        mapped_genre_counts = {}
-        for genre_code, count in all_genre_counts.items():
-            genre_name = genre_mapping.get(genre_code, genre_code)  # 매핑되지 않으면 원래 코드 사용
-            mapped_genre_counts[genre_name] = mapped_genre_counts.get(genre_name, 0) + count
+    #     # 장르 코드를 장르명으로 변환
+    #     mapped_genre_counts = {}
+    #     for genre_code, count in all_genre_counts.items():
+    #         genre_name = genre_mapping.get(genre_code, genre_code)  # 매핑되지 않으면 원래 코드 사용
+    #         mapped_genre_counts[genre_name] = mapped_genre_counts.get(genre_name, 0) + count
         
-        # 상위 10개 장르만 표시
-        top_genres = dict(sorted(mapped_genre_counts.items(), key=lambda x: x[1], reverse=True)[:10])
+    #     # 상위 10개 장르만 표시
+    #     top_genres = dict(sorted(mapped_genre_counts.items(), key=lambda x: x[1], reverse=True)[:10])
         
-        fig = px.pie(
-            values=list(top_genres.values()),
-            names=list(top_genres.keys()),
-            title="상위 10개 장르별 작품 분포"
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    #     fig = px.pie(
+    #         values=list(top_genres.values()),
+    #         names=list(top_genres.keys()),
+    #         title="상위 10개 장르별 작품 분포"
+    #     )
+    #     st.plotly_chart(fig, use_container_width=True)
     
     
-    with analysis_tab3:
-        st.subheader("🌍 국가별 진출 현황")
-        country_counts = analyzer.df['국가'].value_counts().head(15)
-        fig = px.bar(
-            x=country_counts.index,
-            y=country_counts.values,
-            title="상위 15개국 진출 작품 수",
-            labels={'x': '국가', 'y': '작품 수'}
-        )
-        fig.update_xaxes(tickangle=45)
-        st.plotly_chart(fig, use_container_width=True)
+    # with analysis_tab3:
+    #     st.subheader("🌍 국가별 진출 현황")
+    #     country_counts = analyzer.df['국가'].value_counts().head(15)
+    #     fig = px.bar(
+    #         x=country_counts.index,
+    #         y=country_counts.values,
+    #         title="상위 15개국 진출 작품 수",
+    #         labels={'x': '국가', 'y': '작품 수'}
+    #     )
+    #     fig.update_xaxes(tickangle=45)
+    #     st.plotly_chart(fig, use_container_width=True)
 
 if __name__ == "__main__":
     main()

@@ -1093,6 +1093,19 @@ def main():
         # wave 데이터가 없어도 에러 없이 넘어감 (else 블록 없음)
     
     st.markdown("---")
+    genre_mapping = {
+        "A": "A - 환경·재난",
+        "B": "B - 미스터리·스릴러", 
+        "C": "C - SF·판타지",
+        "D": "D - 사회·정치",
+        "E": "E - 이주·전쟁",
+        "F": "F - 젠더·다양성",
+        "G": "G - 종교·신화",
+        "H": "H - 관계·성장",
+        "I": "I - 로맨스",
+        "J": "J - 역사",
+        "미분류": "기타"
+    }
     # 🔼 여기까지 추가
 
     # # 장르별 국가 진출 현황
@@ -1101,19 +1114,7 @@ def main():
     # # 장르 체크박스
     # available_genres = sorted(set().union(*[analyzer.df[f'genre{i}'].dropna().unique() for i in range(1, 5)]))
 
-    # genre_mapping = {
-    #     "A": "A - 환경·재난",
-    #     "B": "B - 미스터리·스릴러", 
-    #     "C": "C - SF·판타지",
-    #     "D": "D - 사회·정치",
-    #     "E": "E - 이주·전쟁",
-    #     "F": "F - 젠더·다양성",
-    #     "G": "G - 종교·신화",
-    #     "H": "H - 관계·성장",
-    #     "I": "I - 로맨스",
-    #     "J": "J - 역사",
-    #     "미분류": "기타"
-    # }
+
 
     # # 🔥 역매핑 딕셔너리 추가 (한국어명 → 알파벳 코드)
     # reverse_genre_mapping = {v: k for k, v in genre_mapping.items()}

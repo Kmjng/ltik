@@ -691,14 +691,10 @@ def main():
     secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
                                     placeholder='비밀번호를 입력해주세요.',
                                     type="password")
-    # 플랫폼에 따른 설정 가져오기
 
     # 비리눅스 환경 (Streamlit Cloud) - secrets 사용
-    st.write("🔍 DEBUG: 비리눅스 환경 감지, secrets 접근 시도")
-    st.write(f"🔍 DEBUG: st.secrets 키 목록: {list(st.secrets.keys())}")
-    
+
     secrets = get_secrets()
-    st.write(f"🔍 DEBUG: get_secrets() 결과: {secrets is not None}")
     
     if secrets:
         correct_password = secrets['app_password']
@@ -706,10 +702,7 @@ def main():
         DB_NAME = secrets['db_name']
         DB_USER = secrets['db_user']
         DB_PASSWORD = secrets['db_password']
-        st.write("✅ DEBUG: secrets에서 설정값 로드 완료")
     else:
-        st.write("❌ DEBUG: secrets 로드 실패")
-        st.error("Streamlit Cloud Secrets 설정을 찾을 수 없습니다.")
         st.stop()
     
     # 비밀번호 확인

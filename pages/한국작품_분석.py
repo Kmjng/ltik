@@ -1000,7 +1000,7 @@ def main():
                     selected_book_title = selected_book['제목']
                     
                     st.markdown("---")
-                    st.header("3️⃣ 개별 작품별 한국 문학 발간 흐름 분석")
+                    st.header("2️⃣ 발간 흐름 분석")
                     
                     # 선택된 작품의 발간 흐름 분석
                     book_info, export_path, book_data = analyzer.get_book_export_path(selected_book_id)
@@ -1054,41 +1054,45 @@ def main():
                     # --------------------------------- # 
                     # 네트워크 그래프
                     st.subheader("📈 발간 흐름 차트 - ver1")
+                    tab1, tab2 = st.tabs(["📈 발간 흐름 차트 - ver1", "🕸️ 발간 흐름 차트 - ver2"])
 
-                    timeline_fig = analyzer.create_book_export_timeline(book_info, export_path)  # 또는 create_book_export_flow
-                    if timeline_fig:
-                        st.plotly_chart(timeline_fig, use_container_width=True)
-                    else:
-                        st.info("해외 발간 이력이 없습니다.")
-                    # --------------------------------- # 
+                    with tab1:
 
-                    st.subheader("🕸️ 발간 흐름 차트 - ver2")
-
-                    col_graph, col_info = st.columns([3, 1])
-                    
-                    with col_graph:
-                        network_html = analyzer.create_book_export_network(book_info, export_path)
-                        if network_html:
-                            components.html(network_html, height=520, scrolling=False)
+                        timeline_fig = analyzer.create_book_export_timeline(book_info, export_path)  # 또는 create_book_export_flow
+                        if timeline_fig:
+                            st.plotly_chart(timeline_fig, use_container_width=True)
                         else:
-                            st.info("발간 흐름가 충분하지 않아 네트워크를 생성할 수 없습니다.")
-                    
-                    with col_info:
-                        st.markdown("### 📋 경로 정보")
-                        st.write(f"**📚 작품명:** {book_info['title']}")
-                        st.write(f"**🎭 장르:** {', '.join([genre_mapping.get(g, g) for g in book_info['genres']])}")
-                        st.write(f"**🏠 원작국:** {book_info['original_country']}")
-                        st.write(f"**📅 원작일:** {book_info['original_date'].strftime('%Y-%m-%d')}")
-                        st.write(f"**🌍 진출국:** {book_info['total_countries']}개국")
-                        st.write(f"**⏰ 총 기간:** {book_info['total_days']}일")
+                            st.info("해외 발간 이력이 없습니다.")
+                    # --------------------------------- # 
+                    with tab2:
+
+                        st.subheader("🕸️ 발간 흐름 차트 - ver2")
+
+                        col_graph, col_info = st.columns([3, 1])
                         
-                        # 수출 속도 분석
-                        if len(export_path) > 1:
-                            export_only = [p for p in export_path if not p['is_original']]
-                            if export_only:
-                                avg_gap = np.mean([p['days_from_original'] for p in export_only])
-                                st.write(f"**📊 평균 수출 간격:** {avg_gap:.0f}일")
-                    
+                        with col_graph:
+                            network_html = analyzer.create_book_export_network(book_info, export_path)
+                            if network_html:
+                                components.html(network_html, height=520, scrolling=False)
+                            else:
+                                st.info("발간 흐름가 충분하지 않아 네트워크를 생성할 수 없습니다.")
+                        
+                        with col_info:
+                            st.markdown("### 📋 경로 정보")
+                            st.write(f"**📚 작품명:** {book_info['title']}")
+                            st.write(f"**🎭 장르:** {', '.join([genre_mapping.get(g, g) for g in book_info['genres']])}")
+                            st.write(f"**🏠 원작국:** {book_info['original_country']}")
+                            st.write(f"**📅 원작일:** {book_info['original_date'].strftime('%Y-%m-%d')}")
+                            st.write(f"**🌍 진출국:** {book_info['total_countries']}개국")
+                            st.write(f"**⏰ 총 기간:** {book_info['total_days']}일")
+                            
+                            # 수출 속도 분석
+                            if len(export_path) > 1:
+                                export_only = [p for p in export_path if not p['is_original']]
+                                if export_only:
+                                    avg_gap = np.mean([p['days_from_original'] for p in export_only])
+                                    st.write(f"**📊 평균 수출 간격:** {avg_gap:.0f}일")
+                        
 
                     # ------------------------------------- #  
                     # 시간별 수출 진행 차트

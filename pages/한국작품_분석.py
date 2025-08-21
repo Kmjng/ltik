@@ -36,19 +36,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# DB 연결 설정
-if platform.system() == 'Linux':
-    from dotenv import load_dotenv
-    load_dotenv()
-    DB_HOST = os.environ.get("DB_HOST")
-    DB_NAME = os.environ.get("DB_NAME") 
-    DB_USER = os.environ.get("DB_USER")
-    DB_PASSWORD = os.environ.get("DB_PASSWORD")
-else: 
-    DB_HOST = st.secrets["database"]["host"]
-    DB_NAME = st.secrets["database"]["database"]
-    DB_USER = st.secrets["database"]["user"]
-    DB_PASSWORD = st.secrets["database"]["password"]
+
+def get_secrets():
+    """Secrets 정보를 안전하게 가져오는 함수"""
+    try:
+        # Streamlit Cloud secrets 접근
+        return {
+            'app_password': st.secrets["app_password"],
+            'db_host': st.secrets["database"]["host"],
+            'db_name': st.secrets["database"]["database"],
+            'db_user': st.secrets["database"]["user"],
+            'db_password': st.secrets["database"]["password"]
+        }
+    except Exception as e:
+        st.error(f"Secrets 접근 오류: {e}")
+        st.info("Streamlit Cloud Secrets 설정을 확인해주세요.")
+        return None
+
+
+
+
 
 class LiteratureExportAnalyzer:
     def __init__(self):
@@ -685,18 +692,46 @@ def main():
                                     placeholder='비밀번호를 입력해주세요.',
                                     type="password")
     
-    # OS에 따라 비밀번호 소스 결정
+    # 플랫폼에 따른 설정 가져오기
     if platform.system() == "Linux":
-        from dotenv import load_dotenv
-        load_dotenv()
-        correct_password = os.environ.get("APP_PASSWORD")
+        # 리눅스 환경 (서버 환경) - 환경변수 사용
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+            correct_password = os.environ.get("APP_PASSWORD")
+            DB_HOST = os.environ.get("DB_HOST")
+            DB_NAME = os.environ.get("DB_NAME") 
+            DB_USER = os.environ.get("DB_USER")
+            DB_PASSWORD = os.environ.get("DB_PASSWORD")
+        except:
+            st.error("환경변수 설정을 찾을 수 없습니다.")
+            st.stop()
     else:
-        correct_password = st.secrets.get("app_password", "your_password")
+        # 비리눅스 환경 (Streamlit Cloud) - secrets 사용
+        st.write("🔍 DEBUG: 비리눅스 환경 감지, secrets 접근 시도")
+        st.write(f"🔍 DEBUG: st.secrets 키 목록: {list(st.secrets.keys())}")
+        
+        secrets = get_secrets()
+        st.write(f"🔍 DEBUG: get_secrets() 결과: {secrets is not None}")
+        
+        if secrets:
+            correct_password = secrets['app_password']
+            DB_HOST = secrets['db_host']
+            DB_NAME = secrets['db_name']
+            DB_USER = secrets['db_user']
+            DB_PASSWORD = secrets['db_password']
+            st.write("✅ DEBUG: secrets에서 설정값 로드 완료")
+        else:
+            st.write("❌ DEBUG: secrets 로드 실패")
+            st.error("Streamlit Cloud Secrets 설정을 찾을 수 없습니다.")
+            st.stop()
     
     # 비밀번호 확인
     if secret_key_user != correct_password:
         st.warning("올바른 비밀번호를 입력해주세요.")
         st.stop()
+    
+
 
     st.markdown(f"""
         <div style="display: flex; align-items: center;">

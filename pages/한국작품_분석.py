@@ -692,38 +692,25 @@ def main():
                                     placeholder='비밀번호를 입력해주세요.',
                                     type="password")
     # 플랫폼에 따른 설정 가져오기
-    if platform.system() == "Linux":
-        # 리눅스 환경 (서버 환경) - 환경변수 사용
-        try:
-            from dotenv import load_dotenv
-            load_dotenv()
-            correct_password = os.environ.get("APP_PASSWORD")
-            DB_HOST = os.environ.get("DB_HOST")
-            DB_NAME = os.environ.get("DB_NAME") 
-            DB_USER = os.environ.get("DB_USER")
-            DB_PASSWORD = os.environ.get("DB_PASSWORD")
-        except:
-            st.error("환경변수 설정을 찾을 수 없습니다.")
-            st.stop()
+
+    # 비리눅스 환경 (Streamlit Cloud) - secrets 사용
+    st.write("🔍 DEBUG: 비리눅스 환경 감지, secrets 접근 시도")
+    st.write(f"🔍 DEBUG: st.secrets 키 목록: {list(st.secrets.keys())}")
+    
+    secrets = get_secrets()
+    st.write(f"🔍 DEBUG: get_secrets() 결과: {secrets is not None}")
+    
+    if secrets:
+        correct_password = secrets['app_password']
+        DB_HOST = secrets['db_host']
+        DB_NAME = secrets['db_name']
+        DB_USER = secrets['db_user']
+        DB_PASSWORD = secrets['db_password']
+        st.write("✅ DEBUG: secrets에서 설정값 로드 완료")
     else:
-        # 비리눅스 환경 (Streamlit Cloud) - secrets 사용
-        st.write("🔍 DEBUG: 비리눅스 환경 감지, secrets 접근 시도")
-        st.write(f"🔍 DEBUG: st.secrets 키 목록: {list(st.secrets.keys())}")
-        
-        secrets = get_secrets()
-        st.write(f"🔍 DEBUG: get_secrets() 결과: {secrets is not None}")
-        
-        if secrets:
-            correct_password = secrets['app_password']
-            DB_HOST = secrets['db_host']
-            DB_NAME = secrets['db_name']
-            DB_USER = secrets['db_user']
-            DB_PASSWORD = secrets['db_password']
-            st.write("✅ DEBUG: secrets에서 설정값 로드 완료")
-        else:
-            st.write("❌ DEBUG: secrets 로드 실패")
-            st.error("Streamlit Cloud Secrets 설정을 찾을 수 없습니다.")
-            st.stop()
+        st.write("❌ DEBUG: secrets 로드 실패")
+        st.error("Streamlit Cloud Secrets 설정을 찾을 수 없습니다.")
+        st.stop()
     
     # 비밀번호 확인
     if secret_key_user != correct_password:

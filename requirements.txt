@@ -6,3 +6,4 @@ mysql-connector-python
 pyvis
 Pillow
 openpyxl
+python-dotenv

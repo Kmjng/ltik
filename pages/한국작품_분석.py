@@ -691,7 +691,7 @@ def main():
     secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
                                     placeholder='비밀번호를 입력해주세요.',
                                     type="password")
-    
+    st.write('asdf')
     # 플랫폼에 따른 설정 가져오기
     if platform.system() == "Linux":
         # 리눅스 환경 (서버 환경) - 환경변수 사용

@@ -37,22 +37,14 @@ st.set_page_config(
 )
 
 
-def get_secrets():
-    """Secrets 정보를 안전하게 가져오는 함수"""
-    try:
-        # Streamlit Cloud secrets 접근
-        return {
-            'app_password': st.secrets["app_password"],
-            'db_host': st.secrets["database"]["host"],
-            'db_name': st.secrets["database"]["database"],
-            'db_user': st.secrets["database"]["user"],
-            'db_password': st.secrets["database"]["password"]
-        }
-    except Exception as e:
-        st.error(f"Secrets 접근 오류: {e}")
-        st.info("Streamlit Cloud Secrets 설정을 확인해주세요.")
-        return None
+# ------------------------------------------------------------------------- # 
+# DB 연결 설정
+DB_HOST = st.secrets["database"]["host"]
+DB_NAME = st.secrets["database"]["database"]
+DB_USER = st.secrets["database"]["user"]
+DB_PASSWORD = st.secrets["database"]["password"]
 
+# ------------------------------------------------------------------------- # 
 
 
 
@@ -692,24 +684,11 @@ def main():
                                     placeholder='비밀번호를 입력해주세요.',
                                     type="password")
 
-    # 비리눅스 환경 (Streamlit Cloud) - secrets 사용
-
-    secrets = get_secrets()
-    
-    if secrets:
-        correct_password = secrets['app_password']
-        DB_HOST = secrets['db_host']
-        DB_NAME = secrets['db_name']
-        DB_USER = secrets['db_user']
-        DB_PASSWORD = secrets['db_password']
-    else:
-        st.stop()
     
     # 비밀번호 확인
-    if secret_key_user != correct_password:
+    if secret_key_user != st.secrets.get("app_password", "your_password"):
         st.warning("올바른 비밀번호를 입력해주세요.")
         st.stop()
-    
 
 
     st.markdown(f"""

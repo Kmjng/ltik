@@ -401,12 +401,12 @@ if selected_region != "선택해주세요":
             # 출발지 권역과 도착지 권역 비교하여 색상 구분 컬럼 추가
             merged_df['is_same_region'] = merged_df['tgt_region_x'] == selected_region
             
-            # 색상 설정 (동일한 권역: 주황-파랑, 다른 권역: 연두-보라)
+            # 색상 설정 (동일한 권역: 주황-파랑, 다른 권역: 연두-연두)
             merged_df['source_color'] = merged_df['is_same_region'].apply(
                 lambda x: [255, 140, 0, 160] if x else [144, 238, 144, 160]  # 주황 vs 연두
             )
             merged_df['target_color'] = merged_df['is_same_region'].apply(
-                lambda x: [0, 128, 255, 160] if x else [138, 43, 226, 160]   # 파랑 vs 보라
+                lambda x: [0, 128, 255, 160] if x else [144, 238, 144, 160]   # 파랑 vs 연두
             )
             
             # 번역 횟수 기준으로 정렬

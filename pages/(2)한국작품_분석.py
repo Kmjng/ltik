@@ -14,11 +14,10 @@ import mysql.connector
 from mysql.connector import Error
 warnings.filterwarnings('ignore')
 import math
-import os 
-from PIL import Image
 import os
 import platform
 import base64 
+from PIL import Image
 
 logo = Image.open('./assets/logo1.jpg')  # 또는 'assets/logo.png'
 def get_base64_image(image_path):
@@ -416,6 +415,7 @@ class LiteratureExportAnalyzer:
         fig = go.Figure()
         
         # 국가별 점 추가
+        # 노드 위: 국가명 추가, 호버 추가 
         fig.add_trace(go.Scatter(
             x=[pos['x'] for pos in positions],
             y=[pos['y'] for pos in positions],
@@ -425,7 +425,7 @@ class LiteratureExportAnalyzer:
                 size=[25 if is_orig else 20 for is_orig in df['is_original']],
                 line=dict(width=2, color='white')
             ),
-            text=df['country'],
+            text=[f"<b>{country}</b>" for country in df['country']],  # HTML <b> 태그로 볼드 처리
             textposition='top center',
             textfont=dict(size=16, color='black'),
             hovertemplate='<b>%{text}</b><br>' +
@@ -435,7 +435,20 @@ class LiteratureExportAnalyzer:
             customdata=list(zip(df['date'].dt.strftime('%Y-%m-%d'), df['days_from_original'])),
             showlegend=False
         ))
-        
+
+        # 노드 아래: 출간일 추가 
+        fig.add_trace(go.Scatter(
+            x=[pos['x'] for pos in positions],
+            y=[pos['y'] - 0.1 for pos in positions],  # y좌표를 0.3만큼 아래로 이동
+            mode='text',  # 텍스트만 표시 (마커는 표시하지 않음)
+            text=df['date'].dt.strftime('%Y-%m-%d'),  # 노드 아래에 출간일 (YYYY-MM-DD 형식)
+            textposition='bottom center',
+            textfont=dict(size=15, color='#666666'),  # 작고 회색으로
+            showlegend=False,
+            hoverinfo='skip'  # 호버 정보는 첫 번째 trace에서만 표시
+        ))
+
+
         # 화살표 선 추가 (지그재그 패턴 고려)
         for i in range(len(df) - 1):
             current_pos = positions[i]
@@ -556,6 +569,51 @@ class LiteratureExportAnalyzer:
             ]
         )
         
+        # ------------------- #
+        # 선 위에 경과일수 텍스트 추가
+        line_texts_x = []
+        line_texts_y = []
+        line_texts_labels = []
+
+        for i in range(len(df) - 1):
+            current_pos = positions[i]
+            next_pos = positions[i + 1]
+            current_row = current_pos['row']
+            next_row = next_pos['row']
+            
+            # 현재에서 다음으로의 경과일수 계산
+            days_diff = df.iloc[i+1]['days_from_original'] - df.iloc[i]['days_from_original']
+            
+            # 31일 이하인 경우 텍스트 표시 안 함
+            if days_diff > 31:
+                if current_row == next_row:
+                    # 같은 행 내에서의 이동 - 선의 중점에 텍스트
+                    mid_x = (current_pos['x'] + next_pos['x']) / 2
+                    mid_y = current_pos['y']
+                    line_texts_x.append(mid_x)
+                    line_texts_y.append(mid_y + 0.15)  # 선보다 약간 위에
+                    line_texts_labels.append(f"+{days_diff}일")
+                    
+                else:
+                    # 다른 행으로 이동 - 수직선의 중점에 텍스트
+                    mid_y = (current_pos['y'] + next_pos['y']) / 2
+                    line_texts_x.append(current_pos['x'] + 0.2)  # 선의 오른쪽에
+                    line_texts_y.append(mid_y)
+                    line_texts_labels.append(f"+{days_diff}일")
+
+        # 선 위 경과일수 텍스트 trace 추가
+        if line_texts_x:  # 선이 있는 경우만
+            fig.add_trace(go.Scatter(
+                x=line_texts_x,
+                y=line_texts_y,
+                mode='text',
+                text=line_texts_labels,
+                textfont=dict(size=15, color='#888888'),  # 작고 연한 회색
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+
+        # ------------------- #
         return fig
 
     # ------------------------------------------------------------ # 
@@ -679,28 +737,51 @@ class LiteratureExportAnalyzer:
 
 # 메인 앱
 def main():
-    # 비밀번호 입력
-    secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
-                                    placeholder='비밀번호를 입력해주세요.',
-                                    type="password")
-
-    
-    # 비밀번호 확인
-    if secret_key_user != st.secrets.get("app_password", "your_password"):
-        st.warning("올바른 비밀번호를 입력해주세요.")
-        st.stop()
-
-
     st.markdown(f"""
         <div style="display: flex; align-items: center;">
             <img src="data:image/png;base64,{logo_base64}" width="50" style="margin-right: 10px;">
-            <h1>개별 작품 발간 흐름 분석</h1>
+            <h1>한국 작품 발간 흐름 분석</h1>
         </div>
         """, unsafe_allow_html=True)
-    st.markdown("👀**개별 작품별 한국 문학 발간 흐름을 상세히 분석합니다.**")
+    st.markdown("👀**한국 문학 발간의 흐름을 작품별로 분석합니다.**")
     st.caption(f"*데이터 출처: Goodreads, GoogleSearch*")
 
     st.markdown("---")
+
+    # session_state 초기화
+    if 'initiated' not in st.session_state:
+        st.session_state['initiated'] = False
+    
+    # 사이드바에 비밀번호 입력
+    with st.sidebar.form(key='설정'):
+        st.subheader("🎈 설정")
+        st.caption("💡`Secret Key`를 입력하세요")
+        # --- Secret key input --- #
+        secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
+                                        placeholder='비밀번호를 입력해주세요.',
+                                        type="password")
+        # --- Secret key input --- #
+        
+        submit_prerequisite = st.form_submit_button('**✅ 확인하기**', use_container_width=True)
+
+    if submit_prerequisite:
+        if secret_key_user == st.secrets.get("app_password", "your_password"):
+            initiated = st.sidebar.success('`Secret Key`가 확인되었습니다', icon="✅")
+            st.session_state['initiated'] = True
+        else:
+            st.sidebar.warning('올바른 `Secret Key`를 입력해 주세요', icon="🚨")
+            st.stop()
+    
+    # 인증 상태에 따른 메시지 표시
+    if st.session_state.get('initiated') and not submit_prerequisite:
+        st.sidebar.success('`Secret Key`가 확인되었습니다', icon="✅")
+    if not st.session_state.get('initiated'):
+        st.sidebar.info('`Secret Key`를 입력해 주세요', icon="ℹ️")
+        st.stop()
+    
+    st.sidebar.markdown("---")
+
+
 
     # 사이드바
     st.sidebar.header("⚙️ 데이터 로딩")
@@ -930,6 +1011,13 @@ def main():
             display_df = filtered_books.copy()
             display_df['발간일'] = display_df['발간일'].dt.strftime('%Y-%m-%d')
             display_df['장르'] = display_df['genres'].apply(format_genres)
+            
+            # 각 작품별 edition 개수 (발간된 국가 수) 계산
+            def get_edition_count(book_id):
+                return analyzer.df[analyzer.df['book_id'] == book_id]['국가'].nunique()
+            
+            display_df['edition_count'] = display_df['book_id'].apply(get_edition_count)
+            
             display_df = display_df.rename(columns={
                 'book_id': '작품 ID',
                 'title': '제목',
@@ -938,7 +1026,8 @@ def main():
                 '장르': '장르', 
                 'ISBN(13)' : 'ISBN-13',
                 '작가명' : '작가', 
-                '출판사명':'원작 출판사명'
+                '출판사명':'원작 출판사명',
+                'edition_count': '발간국가 수'
             })
             
             # 컬럼 순서 조정
@@ -946,7 +1035,7 @@ def main():
             display_df['선택'] = False
 
             # 컬럼 순서 조정 (체크박스를 맨 앞에)
-            display_df = display_df[['선택', '제목', '작가', '원작 발간일', '원작 출판사명', '장르', 'ISBN-13']]
+            display_df = display_df[['선택', '제목', '작가', '원작 발간일', '원작 출판사명', '장르', '발간국가 수', 'ISBN-13']]
             display_df = display_df.sort_values('제목', ascending=True)
 
             # 데이터프레임 표시 (체크박스로)
@@ -960,7 +1049,7 @@ def main():
                         default=False,
                     )
                 },
-                disabled=["제목", "작가", "원작 발간일", "원작 출판사명", "장르", "ISBN-13"],
+                disabled=["제목", "작가", "원작 발간일", "원작 출판사명", "장르", "발간국가 수", "ISBN-13"],
                 use_container_width=True,
                 key="book_selection_editor"
             )
@@ -1032,45 +1121,14 @@ def main():
 
                     # --------------------------------- # 
                     # 네트워크 그래프
-                    tab1, tab2 = st.tabs(["📈 발간 흐름 차트 - ver1", "🕸️ 발간 흐름 차트 - ver2"])
+                    st.subheader("📈 발간 흐름 차트")
 
-                    with tab1:
+                    timeline_fig = analyzer.create_book_export_timeline(book_info, export_path)  # 또는 create_book_export_flow
+                    if timeline_fig:
+                        st.plotly_chart(timeline_fig, use_container_width=True)
+                    else:
+                        st.info("해외 발간 이력이 없습니다.")
 
-                        timeline_fig = analyzer.create_book_export_timeline(book_info, export_path)  # 또는 create_book_export_flow
-                        if timeline_fig:
-                            st.plotly_chart(timeline_fig, use_container_width=True)
-                        else:
-                            st.info("해외 발간 이력이 없습니다.")
-                    # --------------------------------- # 
-                    with tab2:
-
-                        st.subheader("🕸️ 발간 흐름 차트 - ver2")
-
-                        col_graph, col_info = st.columns([3, 1])
-                        
-                        with col_graph:
-                            network_html = analyzer.create_book_export_network(book_info, export_path)
-                            if network_html:
-                                components.html(network_html, height=520, scrolling=False)
-                            else:
-                                st.info("발간 흐름가 충분하지 않아 네트워크를 생성할 수 없습니다.")
-                        
-                        with col_info:
-                            st.markdown("### 📋 경로 정보")
-                            st.write(f"**📚 작품명:** {book_info['title']}")
-                            st.write(f"**🎭 장르:** {', '.join([genre_mapping.get(g, g) for g in book_info['genres']])}")
-                            st.write(f"**🏠 원작국:** {book_info['original_country']}")
-                            st.write(f"**📅 원작일:** {book_info['original_date'].strftime('%Y-%m-%d')}")
-                            st.write(f"**🌍 진출국:** {book_info['total_countries']}개국")
-                            st.write(f"**⏰ 총 기간:** {book_info['total_days']}일")
-                            
-                            # 수출 속도 분석
-                            if len(export_path) > 1:
-                                export_only = [p for p in export_path if not p['is_original']]
-                                if export_only:
-                                    avg_gap = np.mean([p['days_from_original'] for p in export_only])
-                                    st.write(f"**📊 평균 수출 간격:** {avg_gap:.0f}일")
-                        
 
                     # ------------------------------------- #  
                     # 시간별 수출 진행 차트
@@ -1092,14 +1150,14 @@ def main():
                         
                         # 원작 시점 표시
                         original_date = book_info['original_date']
-          
+
                         # Timestamp를 문자열로 변환하여 전달
                         # X축 데이터와 동일한 타입으로 맞춤
                         if hasattr(original_date, 'normalize'):
                             original_datetime = original_date.normalize()  # pandas Timestamp (00:00:00)
                         else:
                             original_datetime = pd.to_datetime(original_date).normalize()
-        
+
                         # 원작 출간 시점에 특별한 점 추가
                         fig.add_scatter(
                             x=[original_datetime],
@@ -1111,7 +1169,38 @@ def main():
                             name='원작 출간',
                             showlegend=False
                         )
-                                    
+                        
+                        # ⭐ X축 고정 설정 - 끝을 현재 연도 말로 고정
+                        all_dates = timeline_df['날짜'].tolist()
+                        if original_datetime not in all_dates:
+                            all_dates.append(original_datetime)
+                        
+                        min_date = min(all_dates)
+                        # current_year = datetime.now().year  # 현재 연도 가져오기
+                        current_year = 2025
+                        fixed_max_date = pd.to_datetime(f'{current_year}-12-31')  # 현재 연도 말로 고정
+                        
+                        # 실제 데이터 범위 계산 (눈금 간격 결정용)
+                        actual_max_date = max(all_dates)
+                        date_span = (actual_max_date - min_date).days
+                        
+                        # 데이터 범위에 따라 동적으로 눈금 간격 설정
+                        if date_span <= 365:  # 1년 이하: 월 간격
+                            dtick = "M1"  # 1개월 간격
+                        elif date_span <= 1095:  # 3년 이하: 3개월 간격  
+                            dtick = "M3"  # 3개월 간격
+                        elif date_span <= 1825:  # 5년 이하: 6개월 간격
+                            dtick = "M6"  # 6개월 간격
+                        else:  # 5년 초과: 1년 간격
+                            dtick = "M12"  # 1년 간격
+                        
+                        fig.update_xaxes(
+                            range=[min_date, fixed_max_date],  # 끝을 현재 연도 말로 고정
+                            dtick=dtick,  # 동적 눈금 간격 적용
+                            tickformat="%Y-%m-%d",  # 날짜 형식 지정
+                            tickangle=-45  # 눈금 라벨 각도 (겹침 방지)
+                        )
+                        
                         fig.update_layout(height=400)
                         st.plotly_chart(fig, use_container_width=True)
                         
@@ -1130,6 +1219,63 @@ def main():
                                 })
                             prev_date = step['date']
                             prev_country = step['country']
+        
+                    # st.subheader("📊 시간별 수출 진행")
+                    
+                    # if len(export_path) > 1:
+                    #     # 시간순 진행 차트
+                    #     timeline_df = pd.DataFrame(export_path)
+                    #     timeline_df['날짜'] = timeline_df['date']
+                    #     timeline_df['누적국가수'] = range(1, len(timeline_df) + 1)
+                        
+                    #     fig = px.line(
+                    #         timeline_df, 
+                    #         x='날짜', 
+                    #         y='누적국가수',
+                    #         title=f"{selected_book_title} - 시간별 진출국 누적",
+                    #         markers=True
+                    #     )
+                        
+                    #     # 원작 시점 표시
+                    #     original_date = book_info['original_date']
+          
+                    #     # Timestamp를 문자열로 변환하여 전달
+                    #     # X축 데이터와 동일한 타입으로 맞춤
+                    #     if hasattr(original_date, 'normalize'):
+                    #         original_datetime = original_date.normalize()  # pandas Timestamp (00:00:00)
+                    #     else:
+                    #         original_datetime = pd.to_datetime(original_date).normalize()
+        
+                    #     # 원작 출간 시점에 특별한 점 추가
+                    #     fig.add_scatter(
+                    #         x=[original_datetime],
+                    #         y=[0],  # 또는 적절한 y값
+                    #         mode='markers+text',
+                    #         marker=dict(color='red', size=15, symbol='diamond'),
+                    #         text=['원작 출간'],
+                    #         textposition="top center",
+                    #         name='원작 출간',
+                    #         showlegend=False
+                    #     )
+                                    
+                    #     fig.update_layout(height=400)
+                    #     st.plotly_chart(fig, use_container_width=True)
+                        
+                    #     # 수출 간격 분석
+                    #     export_intervals = []
+                    #     prev_date = None
+                        
+                    #     for step in export_path:
+                    #         if prev_date is not None:
+                    #             interval = (step['date'] - prev_date).days
+                    #             export_intervals.append({
+                    #                 'from_country': prev_country,
+                    #                 'to_country': step['country'],
+                    #                 'interval_days': interval,
+                    #                 'date': step['date']
+                    #             })
+                    #         prev_date = step['date']
+                    #         prev_country = step['country']
                         
                         
                             

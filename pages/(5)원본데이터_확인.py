@@ -185,18 +185,39 @@ def main():
         initial_sidebar_state="expanded"
     )
     st.title("📚 문학 도서 데이터 조회")
+    st.caption("⛁**연결 데이터: Goodreads BestSeller Database**")
     st.markdown("---")
     
-    # 🔐 비밀번호 입력
-    secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
-                                    placeholder='비밀번호를 입력해주세요.',
-                                    type="password")
+    # session_state 초기화
+    if 'initiated' not in st.session_state:
+        st.session_state['initiated'] = False
     
+    # 사이드바에 비밀번호 입력
+    with st.sidebar.form(key='설정'):
+        # --- Secret key input --- #
+        secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
+                                        placeholder='비밀번호를 입력해주세요.',
+                                        type="password")
+        # --- Secret key input --- #
+        
+        submit_prerequisite = st.form_submit_button('**✅ 확인하기**', use_container_width=True)
 
-    # 비밀번호 확인
-    if secret_key_user != st.secrets.get("app_password", "your_password"):
-        st.warning("올바른 비밀번호를 입력해주세요.")
+    if submit_prerequisite:
+        if secret_key_user == st.secrets.get("app_password", "your_password"):
+            initiated = st.sidebar.success('`Secret Key`가 확인되었습니다', icon="✅")
+            st.session_state['initiated'] = True
+        else:
+            st.sidebar.warning('올바른 `Secret Key`를 입력해 주세요', icon="🚨")
+            st.stop()
+    
+    # 인증 상태에 따른 메시지 표시
+    if st.session_state.get('initiated') and not submit_prerequisite:
+        st.sidebar.success('`Secret Key`가 확인되었습니다', icon="✅")
+    if not st.session_state.get('initiated'):
+        st.sidebar.info('`Secret Key`를 입력해 주세요', icon="ℹ️")
         st.stop()
+    
+    st.sidebar.markdown("---")
     
 
     # 세션 상태 초기화

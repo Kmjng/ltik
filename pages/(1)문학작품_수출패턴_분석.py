@@ -14,10 +14,12 @@ import mysql.connector
 from mysql.connector import Error
 warnings.filterwarnings('ignore')
 import math
-
+import os 
 from PIL import Image
-
+import os
+import platform
 import base64 
+
 logo = Image.open('./assets/logo1.jpg')  # 또는 'assets/logo.png'
 def get_base64_image(image_path):
     """이미지를 base64로 인코딩"""
@@ -40,10 +42,26 @@ st.set_page_config(
 
 # ------------------------------------------------------------------------- # 
 # DB 연결 설정
+
 DB_HOST = st.secrets["database"]["host"]
 DB_NAME = st.secrets["database"]["database"]
 DB_USER = st.secrets["database"]["user"]
 DB_PASSWORD = st.secrets["database"]["password"]
+
+
+# if platform.system() == 'Linux':
+#     from dotenv import load_dotenv
+#     load_dotenv()
+#     DB_HOST = os.environ.get("DB_HOST")
+#     DB_NAME = os.environ.get("DB_NAME") 
+#     DB_USER = os.environ.get("DB_USER")
+#     DB_PASSWORD = os.environ.get("DB_PASSWORD")
+
+# else: 
+#     DB_HOST = st.secrets["database"]["host"]
+#     DB_NAME = st.secrets["database"]["database"]
+#     DB_USER = st.secrets["database"]["user"]
+#     DB_PASSWORD = st.secrets["database"]["password"]
 
 # ------------------------------------------------------------------------- # 
 
@@ -896,16 +914,31 @@ class LiteratureExportAnalyzer:
 
 # 메인 앱
 def main():
-    #  🔐 비밀번호 입력
-    secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
-                                    placeholder='비밀번호를 입력해주세요.',
-                                    type="password")
+    # #  🔐 비밀번호 입력
+    # secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
+    #                                 placeholder='비밀번호를 입력해주세요.',
+    #                                 type="password")
     
-    # 비밀번호 확인
-    if secret_key_user != st.secrets.get("app_password", "your_password"):
-        st.warning("올바른 비밀번호를 입력해주세요.")
-        st.stop()
+    # # 비밀번호 확인
+    # if secret_key_user != st.secrets.get("app_password", "your_password"):
+    #     st.warning("올바른 비밀번호를 입력해주세요.")
+    #     st.stop()
     
+    # # # OS에 따라 비밀번호 소스 결정
+    # # if platform.system() == "Linux":
+    # #     from dotenv import load_dotenv
+    # #     load_dotenv()
+    # #     correct_password = os.environ.get("APP_PASSWORD")
+
+    # # else:
+    # #     correct_password = st.secrets.get("app_password", "your_password")
+    
+    # # # 비밀번호 확인
+    # # if secret_key_user != correct_password:
+    # #     st.warning("올바른 비밀번호를 입력해주세요.")
+    # #     st.stop()
+
+
     import plotly.graph_objects as go
     import pandas as pd
     st.markdown(f"""
@@ -914,15 +947,46 @@ def main():
             <h1>문학 작품 해외 수출 추천 시스템</h1>
         </div>
         """, unsafe_allow_html=True)
-    st.markdown("👀**원작의 후속 진출 국가 및 장르를 분석합니다.**")
-    st.caption(f"*데이터 출처: Goodreads, GoogleSearch*")
+    st.markdown("👀**문학도서의 후속 진출 국가 및 장르를 분석합니다.**")
+    st.caption(f"*데이터 출처: Goodreads BestSeller, GoogleSearch*")
 
     st.markdown("---")
     
 
 
     # 사이드바
-    # st.sidebar.markdown("***")  
+    # st.sidebar.markdown("***")
+    
+    # session_state 초기화
+    if 'initiated' not in st.session_state:
+        st.session_state['initiated'] = False
+    
+     #  🔐 비밀번호 입력 (사이드바)
+    with st.sidebar.form(key = '설정'):
+        # --- Secret key input --- #
+        secret_key_user = st.text_input(':closed_lock_with_key: **Secret Key**',
+                                        placeholder='비밀번호를 입력해주세요.',
+                                        type="password")
+        # --- Secret key input --- #
+        
+        submit_prerequisite = st.form_submit_button('**✅ 확인하기**', use_container_width=True)
+
+    if submit_prerequisite:
+        if secret_key_user == st.secrets.get("app_password", "your_password"):
+            initiated = st.sidebar.success('`Secret Key`가 확인되었습니다', icon="✅")
+            st.session_state['initiated'] = True
+        else:
+            st.sidebar.warning('올바른 `Secret Key`를 입력해 주세요', icon="🚨")
+            st.stop()
+    
+    # 인증 상태에 따른 메시지 표시
+    if st.session_state.get('initiated') and not submit_prerequisite:
+        st.sidebar.success('`Secret Key`가 확인되었습니다', icon="✅")
+    if not st.session_state.get('initiated'):
+        st.sidebar.info('`Secret Key`를 입력해 주세요', icon="ℹ️")
+        st.stop()
+    
+    st.sidebar.markdown("---")
     st.sidebar.header("⚙️ 데이터 로딩")
     
     # 기간 설정 추가
@@ -942,6 +1006,7 @@ def main():
             value=datetime.now(),  # 기본값: 현재 날짜
             help="분석할 데이터의 종료 날짜"
         )
+        
 
     # 데이터 로드 버튼
     if st.sidebar.button("🔄 데이터 불러오기", type="primary"):
@@ -1310,7 +1375,8 @@ def main():
             with info_col2:
                 st.metric("후속 진출 건수", f"{start_stats['total_transitions']}건")
             with info_col3:
-                st.metric("후속 진출률", f"{start_stats['transition_rate']:.1f}%")
+                # st.metric("후속 진출률", f"{start_stats['transition_rate']:.1f}%")
+                st.write('')
             
             st.markdown("---")
             
@@ -1332,7 +1398,7 @@ def main():
                 # 네트워크 그래프 생성 및 표시
                 st.subheader("🕸️ 후속 진출 국가 네트워크")
                 # st.write(f"  ᯓ ✈︎ **{start_country}에서 {selected_genre} 장르를 원작으로 출간한 후 진출 경향성**")
-                st.write(f"  ᯓ ✈︎ **{start_country}에서 {genre_mapping.get(selected_genre, selected_genre)} 장르를 원작으로 출간한 후 진출 경향성**")
+                st.write(f"  ᯓ ✈︎ **{start_country}에서 [{genre_mapping.get(selected_genre, selected_genre)}] 장르를 원작으로 출간한 후 진출 경향성**")
                 # 경고메세지가 있으면 출력
                 if warning_message:
                     st.warning(warning_message)

@@ -7,6 +7,4 @@ pyvis
 Pillow
 openpyxl
 python-dotenv
-pydeck
-base64
-datetime
+pydeck==0.9.1

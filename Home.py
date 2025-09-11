@@ -24,22 +24,25 @@ logo_base64 = get_base64_image('./assets/logo1.jpg')
 # DB 연결 설정
 
 
-if platform.system() == 'Linux':
-    from dotenv import load_dotenv
-    load_dotenv()
-    DB_HOST = os.environ.get("DB_HOST")
-    DB_NAME = os.environ.get("DB_NAME") 
-    DB_USER = os.environ.get("DB_USER")
-    DB_PASSWORD = os.environ.get("DB_PASSWORD")
+# if platform.system() == 'Linux':
+#     from dotenv import load_dotenv
+#     load_dotenv()
+#     DB_HOST = os.environ.get("DB_HOST")
+#     DB_NAME = os.environ.get("DB_NAME") 
+#     DB_USER = os.environ.get("DB_USER")
+#     DB_PASSWORD = os.environ.get("DB_PASSWORD")
 
-else: 
-    DB_HOST = st.secrets["database"]["host"]
-    DB_NAME = st.secrets["database"]["database"]
-    DB_USER = st.secrets["database"]["user"]
-    DB_PASSWORD = st.secrets["database"]["password"]
+# else: 
+#     DB_HOST = st.secrets["database"]["host"]
+#     DB_NAME = st.secrets["database"]["database"]
+#     DB_USER = st.secrets["database"]["user"]
+#     DB_PASSWORD = st.secrets["database"]["password"]
 
 # ------------------------------------------------------------------------- # 
-
+DB_HOST = st.secrets["database"]["host"]
+DB_NAME = st.secrets["database"]["database"]
+DB_USER = st.secrets["database"]["user"]
+DB_PASSWORD = st.secrets["database"]["password"]
 
 
 

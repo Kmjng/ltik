@@ -66,6 +66,7 @@ def load_data_from_db(host, database, user, password, start_date=None, end_date=
                     lbr.국가,
                     lbr.원작여부,
                     lbr.원작_제목,
+                    lbr.작가명,
                     gc.위도,
                     gc.경도,
                     CASE 
@@ -121,7 +122,7 @@ def load_data_from_db(host, database, user, password, start_date=None, end_date=
             connection.close()
             
             # 필수 컬럼 확인
-            required_cols = ['book_id', '발간일', '권역', '국가', '원작여부', '원작_제목', '위도','경도','권역_x']
+            required_cols = ['book_id', '발간일', '권역', '국가', '원작여부', '원작_제목', '작가명', '위도','경도','권역_x']
             missing_cols = [col for col in required_cols if col not in df.columns]
             if missing_cols:
                 st.error(f"누락된 컬럼: {missing_cols}")
@@ -551,6 +552,7 @@ if selected_region != "선택해주세요":
                     
                     books_with_translations.append({
                         '원작_제목': orig_row['원작_제목'],
+                        '작가': orig_row['작가명'],
                         '발간일': orig_row['발간일'].strftime('%Y-%m-%d'),
                         '원작_권역': orig_row['권역'],
                         '원작_국가': orig_row['국가'],
@@ -560,7 +562,7 @@ if selected_region != "선택해주세요":
                     })
                 
                 books_df = pd.DataFrame(books_with_translations)
-                books_df.columns = ['작품명', '발간일', '원작 권역', '원작 국가', '번역된 국가들', '번역된 권역들', '번역 횟수']
+                books_df.columns = ['작품명', '작가명', '발간일', '원작 권역', '원작 국가', '번역된 국가들', '번역된 권역들', '번역 횟수']
                 
                 # 발간일 순으로 정렬
                 books_df = books_df.sort_values('발간일')

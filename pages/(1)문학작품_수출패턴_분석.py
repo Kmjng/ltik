@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
+import plotly.express as px  
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
@@ -405,8 +405,39 @@ class LiteratureExportAnalyzer:
         if start_country in self.transition_matrix:
             debug_info += f"전체 전이 데이터: {list(self.transition_matrix[start_country].keys())}\n"
         
+        # '전체' 선택 시 전체 전이 매트릭스 사용
+        if genre == '전체':
+            if start_country in self.transition_matrix:
+                transitions = self.transition_matrix[start_country]
+                message = f"전체 장르에 대한 분석 결과입니다."
+                for next_country, probability in transitions.items():
+                    # 전체 장르의 평균 장르 적합도 계산
+                    genre_fit = 0
+                    genre_fit_count = 0
+                    for g in self.genre_fit_scores:
+                        if next_country in self.genre_fit_scores[g]:
+                            genre_fit += self.genre_fit_scores[g][next_country]
+                            genre_fit_count += 1
+                    if genre_fit_count > 0:
+                        genre_fit = genre_fit / genre_fit_count
+                    
+                    # 최종 점수 계산
+                    final_score = (probability * prob_weight) + (genre_fit * genre_weight)
+                    
+                    recommendations.append({
+                        'country': next_country,
+                        'probability': probability * 100,
+                        'confidence': 50,  # 전체 장르 데이터이므로 중간 신뢰도
+                        'transition_count': '전체 장르 전이 확률 기반',
+                        'total_from_start': '전체',
+                        'genre_fit': genre_fit * 100,
+                        'final_score': final_score * 100
+                    })
+            else:
+                message = f"⚠️ {start_country}에서 원작로 출간된 진출 데이터가 충분하지 않습니다."
+        
         # (1) 장르별 원작 전이 데이터가 있는 경우
-        if (genre in self.genre_transition_matrix and 
+        elif (genre in self.genre_transition_matrix and 
             start_country in self.genre_transition_matrix[genre]):
             
             transitions = self.genre_transition_matrix[genre][start_country]
@@ -551,10 +582,11 @@ class LiteratureExportAnalyzer:
         )
 
         # 중심 노드 (원작 출간 국가) 추가
+        genre_display = '전체 장르' if genre == '전체' else genre
         start_node_title = f"""
         {start_country}
         원작 출간 국가
-        장르: {genre}
+        장르: {genre_display}
         """
         net.add_node(
             start_country,
@@ -802,23 +834,43 @@ class LiteratureExportAnalyzer:
 
         
         # 그 중에서 해당 장르를 포함한 작품 수 계산
-        genre_books = set()
-        for _, row in country_original_books.iterrows():
-            book_id = row['book_id']
-            # 해당 작품이 선택한 장르를 포함하는지 확인
-            for genre_col in self.genre_columns:
-                if not pd.isna(row[genre_col]) and row[genre_col] == genre:
-                    genre_books.add(book_id)
-                    break  # 하나라도 매치되면 충분
-        
-        original_books_count = len(genre_books)
+        if genre == '전체':
+            # 전체 선택 시 모든 원작 작품 카운트
+            genre_books = set(country_original_books['book_id'].unique())
+            original_books_count = len(genre_books)
+        else:
+            genre_books = set()
+            for _, row in country_original_books.iterrows():
+                book_id = row['book_id']
+                # 해당 작품이 선택한 장르를 포함하는지 확인
+                for genre_col in self.genre_columns:
+                    if not pd.isna(row[genre_col]) and row[genre_col] == genre:
+                        genre_books.add(book_id)
+                        break  # 하나라도 매치되면 충분
+            
+            original_books_count = len(genre_books)
         
         # 원작 기준 후속 진출 횟수 계산
         transition_count = 0
         # # 
         debug_msgs.append(f"장르 전이 매트릭스에 '{genre}' 있나? {genre in self.genre_transition_matrix}")
         
-        if genre in self.genre_transition_matrix:
+        if genre == '전체':
+            # 전체 선택 시 원본 데이터에서 직접 계산
+            for book_id, group in self.df.groupby('book_id'):
+                original_records = group[group['원작여부'] == 'original']
+                if len(original_records) > 0:
+                    original_record = original_records.loc[original_records['발간일'].idxmin()]
+                    original_country = original_record['국가']
+                    original_date = original_record['발간일']
+                    if original_country == start_country:
+                        subsequent_records = group[
+                            (group['발간일'] > original_date) | 
+                            ((group['발간일'] == original_date) & (group['국가'] != original_country))
+                        ]
+                        if len(subsequent_records) > 0:
+                            transition_count += len(subsequent_records)
+        elif genre in self.genre_transition_matrix:
             debug_msgs.append(f"'{genre}'에서 '{start_country}' 있나? {start_country in self.genre_transition_matrix[genre]}")
             
             if start_country in self.genre_transition_matrix[genre]:
@@ -871,7 +923,7 @@ class LiteratureExportAnalyzer:
                         original_genres.append(original_record[genre_col])
                 
                 # 선택한 국가와 장르가 맞는지 확인
-                if original_country == start_country and genre in original_genres:
+                if original_country == start_country and (genre == '전체' or genre in original_genres):
                     # 원작 이후 진출 국가들을 시간순으로 정렬
                     subsequent_records = group[
                         (group['발간일'] > original_date) | 
@@ -1169,7 +1221,8 @@ def main():
         "H": "H - 관계·성장",
         "I": "I - 로맨스",
         "J": "J - 역사",
-        "미분류": "기타"
+        "미분류": "기타", 
+        
     }
 
     # 🔼 여기까지 추가
@@ -1299,15 +1352,21 @@ def main():
         available_genre_codes = analyzer.get_all_genres()  # 장르 코드들 (A, B, C, ...)
         available_genre_names = [genre_mapping.get(code, code) for code in available_genre_codes]  # 실제 장르명으로 변환
         
+        # '전체' 옵션 추가
+        genre_options = ['전체'] + available_genre_names
+        
         selected_genre_name = st.selectbox(
             "📖 장르 선택", 
-            available_genre_names,
-            index=0 if 'Romance' not in available_genre_names else available_genre_names.index('Romance')
+            genre_options,
+            index=0 if 'Romance' not in available_genre_names else available_genre_names.index('Romance') + 1
         )
         
         # 선택된 장르명에서 다시 코드로 변환 (분석에 사용)
         reverse_mapping = {v: k for k, v in genre_mapping.items()}
-        selected_genre = reverse_mapping.get(selected_genre_name, selected_genre_name)
+        if selected_genre_name == '전체':
+            selected_genre = '전체'
+        else:
+            selected_genre = reverse_mapping.get(selected_genre_name, selected_genre_name)
         
         st.caption(f"*장르 출처: GoogleSearch*")
 
@@ -1316,8 +1375,12 @@ def main():
         
         # 해당 장르를 포함한 원작 작품들 필터링
         original_df = analyzer.df[analyzer.df['원작여부'] == 'original']
-        genre_books = analyzer.get_books_by_genre(selected_genre)
-        genre_original_books = genre_books[genre_books['원작여부'] == 'original']
+        if selected_genre == '전체':
+            # 전체 선택 시 모든 원작 작품 사용
+            genre_original_books = original_df
+        else:
+            genre_books = analyzer.get_books_by_genre(selected_genre)
+            genre_original_books = genre_books[genre_books['원작여부'] == 'original']
         
         # 국가별 해당 장르 원작 작품 수 계산
         country_counts = genre_original_books['국가'].value_counts()
@@ -1367,7 +1430,10 @@ def main():
                     top_k=8
                 )
             # 시작 국가 정보 표시 (화면에는 장르명 표시)
-            st.subheader(f"🌍 {start_country} » 📍 {selected_genre_name} 장르")
+            if selected_genre_name == '전체':
+                st.subheader(f"🌍 {start_country} » 📍 전체 장르")
+            else:
+                st.subheader(f"🌍 {start_country} » 📍 {selected_genre_name} 장르")
             
             info_col1, info_col2, info_col3 = st.columns(3)
             with info_col1:
@@ -1398,7 +1464,10 @@ def main():
                 # 네트워크 그래프 생성 및 표시
                 st.subheader("🕸️ 후속 진출 국가 네트워크")
                 # st.write(f"  ᯓ ✈︎ **{start_country}에서 {selected_genre} 장르를 원작으로 출간한 후 진출 경향성**")
-                st.write(f"  ᯓ ✈︎ **{start_country}에서 [{genre_mapping.get(selected_genre, selected_genre)}] 장르를 원작으로 출간한 후 진출 경향성**")
+                if selected_genre == '전체':
+                    st.write(f"  ᯓ ✈︎ **{start_country}에서 [전체 장르]를 원작으로 출간한 후 진출 경향성**")
+                else:
+                    st.write(f"  ᯓ ✈︎ **{start_country}에서 [{genre_mapping.get(selected_genre, selected_genre)}] 장르를 원작으로 출간한 후 진출 경향성**")
                 # 경고메세지가 있으면 출력
                 if warning_message:
                     st.warning(warning_message)
@@ -1436,11 +1505,15 @@ def main():
                 with chart_tab1:
                     # 진출 확률 막대 차트
                     chart_data = recommendations[:8]
+                    if selected_genre == '전체':
+                        chart_title = f"{start_country}에서 전체 장르의 후속 진출 확률"
+                    else:
+                        chart_title = f"{start_country}에서 {genre_mapping.get(selected_genre, selected_genre)} 장르의 후속 진출 확률"
                     fig = px.bar(
                         x=[rec['country'] for rec in chart_data],
                         y=[rec['probability'] for rec in chart_data],
                         # title=f"{start_country}에서 {selected_genre} 출간 후 후속 진출 확률",
-                        title=f"{start_country}에서 {genre_mapping.get(selected_genre, selected_genre)} 장르의 후속 진출 확률",
+                        title=chart_title,
                         labels={'x': '후속 진출 국가', 'y': '진출 확률 (%)'},
                         color=[rec['probability'] for rec in chart_data],
                         color_continuous_scale="viridis"
@@ -1472,7 +1545,10 @@ def main():
             
             else:
                 # st.warning(f"⚠️ {start_country}에서 {selected_genre} 장르 출간 후 후속 진출 데이터가 충분하지 않습니다.")
-                st.warning(f"⚠️ {start_country}에서 {genre_mapping.get(selected_genre, selected_genre)} 장르 출간 후 후속 진출 데이터가 충분하지 않습니다.")
+                if selected_genre == '전체':
+                    st.warning(f"⚠️ {start_country}에서 전체 장르 출간 후 후속 진출 데이터가 충분하지 않습니다.")
+                else:
+                    st.warning(f"⚠️ {start_country}에서 {genre_mapping.get(selected_genre, selected_genre)} 장르 출간 후 후속 진출 데이터가 충분하지 않습니다.")
                 st.info("다른 국가나 장르를 선택해보세요.")
     
     # # 전체 분석 결과

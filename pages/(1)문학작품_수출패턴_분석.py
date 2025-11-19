@@ -384,13 +384,83 @@ class LiteratureExportAnalyzer:
                                 'count': count,
                                 'total_transitions': total
                             }
-
+    # 251114 - 테오 수정 (국가도 전체 확인할 수 있게 수정)
     def recommend_next_countries(self, start_country, genre, genre_mapping,  prob_weight=0.7, genre_weight=0.2, conf_weight=0.1, top_k=10):
-
         """특정 국가에서 특정 장르 원작로 시작했을 때 다음 진출 국가 추천"""
 
         recommendations = []
         message = None 
+
+        # 🔴 NEW: 국가가 "전체"인 경우 처리
+        if start_country == "전체":
+            # 모든 국가의 전이를 합산
+            all_transitions = defaultdict(int)
+            
+            if genre == '전체':
+                # 전체 장르, 전체 국가
+                for from_country in self.transition_matrix:
+                    for to_country, prob in self.transition_matrix[from_country].items():
+                        all_transitions[to_country] += prob
+                message = "전체 국가의 전체 장르 평균 진출 패턴을 표시합니다."
+            else:
+                # 특정 장르, 전체 국가
+                if genre in self.genre_transition_matrix:
+                    for from_country in self.genre_transition_matrix[genre]:
+                        for to_country, data in self.genre_transition_matrix[genre][from_country].items():
+                            all_transitions[to_country] += data['probability']
+                    message = f"전체 국가의 {genre_mapping.get(genre, genre)} 장르 평균 진출 패턴을 표시합니다."
+                else:
+                    message = f"⚠️ {genre_mapping.get(genre, genre)} 장르의 진출 데이터가 충분하지 않습니다."
+            
+            # 평균 확률로 변환 및 추천 리스트 생성
+            if all_transitions:
+                total_weight = sum(all_transitions.values())
+                for country in all_transitions:
+                    probability = (all_transitions[country] / total_weight) * 100
+                    
+                    # 장르 적합도 추가
+                    genre_fit = 0
+                    if genre != '전체' and genre in self.genre_fit_scores and country in self.genre_fit_scores[genre]:
+                        genre_fit = self.genre_fit_scores[genre][country]
+                    elif genre == '전체':
+                        genre_fit_count = 0
+                        for g in self.genre_fit_scores:
+                            if country in self.genre_fit_scores[g]:
+                                genre_fit += self.genre_fit_scores[g][country]
+                                genre_fit_count += 1
+                        if genre_fit_count > 0:
+                            genre_fit = genre_fit / genre_fit_count
+                    
+                    final_score = (probability / 100 * prob_weight) + (genre_fit * genre_weight)
+                    
+                    recommendations.append({
+                        'country': country,
+                        'probability': probability,
+                        'confidence': 50,
+                        'transition_count': '전체 국가 평균',
+                        'total_from_start': '전체',
+                        'genre_fit': genre_fit * 100,
+                        'final_score': final_score * 100,
+                        'avg_days_from_original': None,
+                        'timing_rank': None
+                    })
+            
+            # 정렬
+            recommendations.sort(key=lambda x: x['final_score'], reverse=True)
+            
+            stats_info = ""
+            if recommendations:
+                final_scores = [rec['final_score'] for rec in recommendations]
+                avg_score = sum(final_scores) / len(final_scores)
+                
+                stats_info = f"\n📊 종합점수 통계 - 전체 국가\n"
+                stats_info += f"   추천 국가 수: {len(recommendations)}개\n"
+                stats_info += f"   종합점수 평균: {avg_score:.2f}\n"
+                stats_info += f"   최고점: {max(final_scores):.2f}\n"
+                stats_info += f"   최저점: {min(final_scores):.2f}\n"
+                stats_info += f"   점수 범위: {max(final_scores) - min(final_scores):.2f}\n"
+            
+            return recommendations[:top_k], message, stats_info, []
 
         # 🔍 디버깅 정보를 문자열로 구성
         debug_info = f"\n🔍 원작 기준 추천: {start_country} → {genre}\n"
@@ -531,7 +601,154 @@ class LiteratureExportAnalyzer:
                 rec['timing_rank'] = None
 
 
-        return recommendations[:top_k], message, stats_info, time_progression 
+        return recommendations[:top_k], message, stats_info, time_progression
+    # def recommend_next_countries(self, start_country, genre, genre_mapping,  prob_weight=0.7, genre_weight=0.2, conf_weight=0.1, top_k=10):
+
+    #     """특정 국가에서 특정 장르 원작로 시작했을 때 다음 진출 국가 추천"""
+
+    #     recommendations = []
+    #     message = None 
+
+    #     # 🔍 디버깅 정보를 문자열로 구성
+    #     debug_info = f"\n🔍 원작 기준 추천: {start_country} → {genre}\n"
+    #     debug_info += f"장르별 전이 매트릭스에 {genre} 있나? {genre in self.genre_transition_matrix}\n"
+        
+    #     if genre in self.genre_transition_matrix:
+    #         debug_info += f"{genre}에서 {start_country} 있나? {start_country in self.genre_transition_matrix[genre]}\n"
+    #         if start_country in self.genre_transition_matrix[genre]:
+    #             debug_info += f"장르별 데이터: {list(self.genre_transition_matrix[genre][start_country].keys())}\n"
+        
+    #     debug_info += f"전체 전이 매트릭스에 {start_country} 있나? {start_country in self.transition_matrix}\n"
+    #     if start_country in self.transition_matrix:
+    #         debug_info += f"전체 전이 데이터: {list(self.transition_matrix[start_country].keys())}\n"
+        
+    #     # '전체' 선택 시 전체 전이 매트릭스 사용
+    #     if genre == '전체':
+    #         if start_country in self.transition_matrix:
+    #             transitions = self.transition_matrix[start_country]
+    #             message = f"전체 장르에 대한 분석 결과입니다."
+    #             for next_country, probability in transitions.items():
+    #                 # 전체 장르의 평균 장르 적합도 계산
+    #                 genre_fit = 0
+    #                 genre_fit_count = 0
+    #                 for g in self.genre_fit_scores:
+    #                     if next_country in self.genre_fit_scores[g]:
+    #                         genre_fit += self.genre_fit_scores[g][next_country]
+    #                         genre_fit_count += 1
+    #                 if genre_fit_count > 0:
+    #                     genre_fit = genre_fit / genre_fit_count
+                    
+    #                 # 최종 점수 계산
+    #                 final_score = (probability * prob_weight) + (genre_fit * genre_weight)
+                    
+    #                 recommendations.append({
+    #                     'country': next_country,
+    #                     'probability': probability * 100,
+    #                     'confidence': 50,  # 전체 장르 데이터이므로 중간 신뢰도
+    #                     'transition_count': '전체 장르 전이 확률 기반',
+    #                     'total_from_start': '전체',
+    #                     'genre_fit': genre_fit * 100,
+    #                     'final_score': final_score * 100
+    #                 })
+    #         else:
+    #             message = f"⚠️ {start_country}에서 원작로 출간된 진출 데이터가 충분하지 않습니다."
+        
+    #     # (1) 장르별 원작 전이 데이터가 있는 경우
+    #     elif (genre in self.genre_transition_matrix and 
+    #         start_country in self.genre_transition_matrix[genre]):
+            
+    #         transitions = self.genre_transition_matrix[genre][start_country]
+            
+    #         for next_country, data in transitions.items():
+    #             probability = data['probability'] # 진출 확률
+    #             count = data['count']
+    #             total_transitions = data['total_transitions']
+                
+
+    #             # 🔴 NEW: 전이 횟수가 5회 미만이면 제외
+    #             if count < 3: # !! 
+    #                 continue
+
+    #             # 신뢰도 계산 (전이 횟수 기반)
+    #             confidence = min(count / 12, 1.0)  # 24회 이상이면 최대 신뢰도
+                
+    #             # 장르 적합도 추가
+    #             genre_fit = 0
+    #             if genre in self.genre_fit_scores and next_country in self.genre_fit_scores[genre]:
+    #                 genre_fit = self.genre_fit_scores[genre][next_country]
+                
+    #             # 최종 점수 계산 - 가중치 매개변수 사용
+    #             final_score = (probability * prob_weight) + (genre_fit * genre_weight) + (confidence * conf_weight)
+        
+                
+    #             recommendations.append({
+    #                 'country': next_country,
+    #                 'probability': probability * 100,
+    #                 'confidence': confidence * 100,
+    #                 'transition_count': count,
+    #                 'total_from_start': total_transitions,
+    #                 'genre_fit': genre_fit * 100,
+    #                 'final_score': final_score * 100
+    #             })
+        
+    #     # (2) 장르별 전이 데이터가 없는 경우 - 폴백(fallback), 전체 전이 확률 사용
+    #     elif start_country in self.transition_matrix:
+    #         transitions = self.transition_matrix[start_country]
+    #         # message = f"⚠️ {start_country}에서 {genre} 장르 원작의 수출 이력이 부족하여 전체 장르 평균을 표시합니다."
+    #         message = f"⚠️ {start_country}에서 {genre_mapping.get(genre, genre)} 장르 원작의 수출 이력이 부족하여 전체 장르 평균을 표시합니다."
+    #         for next_country, probability in transitions.items():
+    #             # 장르 적합도 추가
+    #             genre_fit = 0
+    #             if genre in self.genre_fit_scores and next_country in self.genre_fit_scores[genre]:
+    #                 genre_fit = self.genre_fit_scores[genre][next_country]
+                
+    #             # 최종 점수 계산 - 가중치 매개변수 사용  
+    #             final_score = (probability * prob_weight) + (genre_fit * genre_weight)
+        
+                
+    #             recommendations.append({
+    #                 'country': next_country,
+    #                 'probability': probability * 100,
+    #                 'confidence': 50,  # 장르별 데이터가 없으므로 중간 신뢰도
+    #                 'transition_count': '일반 전이 확률 기반',
+    #                 'total_from_start': '전체',
+    #                 'genre_fit': genre_fit * 100,
+    #                 'final_score': final_score * 100
+    #             })
+    #     else:
+    #         message = f"⚠️ {start_country}에서 원작로 출간된 진출 데이터가 충분하지 않습니다."
+
+    #     # 정렬
+    #     recommendations.sort(key=lambda x: x['final_score'], reverse=True)
+        
+    #     # ✅ 종합점수 통계를 문자열로 구성
+    #     stats_info = ""
+    #     if recommendations:
+    #         final_scores = [rec['final_score'] for rec in recommendations]
+    #         avg_score = sum(final_scores) / len(final_scores)
+            
+    #         stats_info = f"\n📊 종합점수 통계 - {start_country}\n"
+    #         stats_info += f"   추천 국가 수: {len(recommendations)}개\n"
+    #         stats_info += f"   종합점수 평균: {avg_score:.2f}\n"
+    #         stats_info += f"   최고점: {max(final_scores):.2f}\n"
+    #         stats_info += f"   최저점: {min(final_scores):.2f}\n"
+    #         stats_info += f"   점수 범위: {max(final_scores) - min(final_scores):.2f}\n"
+        
+    #     # 시간순 진출 패턴 계산 추가
+    #     time_progression, timing_summary = self.calculate_time_based_progression(start_country, genre)
+        
+    #     # 기존 recommendations에 시간 정보 추가
+    #     for rec in recommendations:
+    #         country = rec['country']
+    #         if country in timing_summary:
+    #             rec['avg_days_from_original'] = timing_summary[country]['avg_days']
+    #             rec['timing_rank'] = next((i+1 for i, (c, _) in enumerate(time_progression) if c == country), None)
+    #         else:
+    #             rec['avg_days_from_original'] = None
+    #             rec['timing_rank'] = None
+
+
+    #     return recommendations[:top_k], message, stats_info, time_progression 
 
     def get_genre_country_stats(self, selected_genres):
         """선택된 장르들의 국가별 진출 건수 반환 - 다중 장르 지원"""
@@ -1370,6 +1587,7 @@ def main():
         
         st.caption(f"*장르 출처: GoogleSearch*")
 
+    # 251114 - 테오 수정 (국가도 전체 확인할 수 있게 수정)
     with col2:
         # 🔴 수정된 부분: 선택된 장르의 작품 개수가 많은 국가 순으로 정렬
         
@@ -1396,7 +1614,7 @@ def main():
         available_countries = countries_with_works + countries_without_works
         
         # selectbox에 국가별 작품 수 표시
-        country_labels = []
+        country_labels = ["전체"]  # 🔴 NEW: "전체" 옵션 추가
         for country in available_countries:
             count = country_counts.get(country, 0)
             if count > 0:
@@ -1407,44 +1625,113 @@ def main():
         selected_country_label = st.selectbox("🚀 원작 출간 국가 선택", country_labels)
         
         # 실제 국가명 추출 (괄호 앞부분)
-        start_country = selected_country_label.split(' (')[0]
+        if selected_country_label == "전체":
+            start_country = "전체"
+        else:
+            start_country = selected_country_label.split(' (')[0]
+
+    # with col2:
+    #     # 🔴 수정된 부분: 선택된 장르의 작품 개수가 많은 국가 순으로 정렬
+        
+    #     # 해당 장르를 포함한 원작 작품들 필터링
+    #     original_df = analyzer.df[analyzer.df['원작여부'] == 'original']
+    #     if selected_genre == '전체':
+    #         # 전체 선택 시 모든 원작 작품 사용
+    #         genre_original_books = original_df
+    #     else:
+    #         genre_books = analyzer.get_books_by_genre(selected_genre)
+    #         genre_original_books = genre_books[genre_books['원작여부'] == 'original']
+        
+    #     # 국가별 해당 장르 원작 작품 수 계산
+    #     country_counts = genre_original_books['국가'].value_counts()
+        
+    #     # 작품이 있는 국가들을 작품 수 순으로 정렬
+    #     countries_with_works = country_counts.index.tolist()
+        
+    #     # 해당 장르 작품이 없는 국가들도 포함 (알파벳 순으로 추가)
+    #     all_countries = set(analyzer.df['국가'].unique())
+    #     countries_without_works = sorted(all_countries - set(countries_with_works))
+        
+    #     # 최종 국가 목록: 작품 수 많은 순 + 작품 없는 국가들 (알파벳 순)
+    #     available_countries = countries_with_works + countries_without_works
+        
+    #     # selectbox에 국가별 작품 수 표시
+    #     country_labels = []
+    #     for country in available_countries:
+    #         count = country_counts.get(country, 0)
+    #         if count > 0:
+    #             country_labels.append(f"{country} ({count}개)")
+    #         else:
+    #             country_labels.append(f"{country} (0개)")
+        
+    #     selected_country_label = st.selectbox("🚀 원작 출간 국가 선택", country_labels)
+        
+    #     # 실제 국가명 추출 (괄호 앞부분)
+    #     start_country = selected_country_label.split(' (')[0]
 
     # 추천 실행
     if st.button("🔍 분석 실행", type="primary"):
+
+        
         with st.spinner("원작 기준 후속 진출 패턴 분석 중..."):
             # 시작 국가 통계 (selected_genre는 코드 사용)
-            start_stats, df = analyzer.get_start_country_stats(start_country, selected_genre)
-            
-            # st.write(df)
-            
-            # 후속 국가 추천
-            # recommendations, warning_message, debug_stats, time_progression = analyzer.recommend_next_countries(
-            #         start_country, selected_genre, genre_mapping,
-            #         prob_weight=prob_weight, 
-            #         genre_weight=genre_weight, 
-            #         conf_weight=conf_weight,
-            #         top_k=8
-            #     )
-            recommendations, warning_message, debug_stats, time_progression = analyzer.recommend_next_countries(
+    
+    
+            # 251114 - 테오 수정 (국가도 전체 확인할 수 있게 수정)
+
+            # 🔴 NEW: 국가가 "전체"인 경우 처리
+            if start_country == "전체":
+                # 전체 통계 계산
+                if selected_genre == '전체':
+                    total_books = len(analyzer.df[analyzer.df['원작여부'] == 'original'])
+                    st.subheader(f"🌍 전체 국가 » 📍 전체 장르")
+                else:
+                    genre_books = analyzer.get_books_by_genre(selected_genre)
+                    total_books = len(genre_books[genre_books['원작여부'] == 'original'])
+                    st.subheader(f"🌍 전체 국가 » 📍 {selected_genre_name} 장르")
+                
+                info_col1, info_col2 = st.columns(2)
+                with info_col1:
+                    st.metric("원작 작품 수", f"{total_books}개")
+                with info_col2:
+                    st.write('')
+                
+                start_stats = {'total_original_books': total_books}
+                
+                # 🔴 FIX: 전체 국가인 경우에도 recommendations 호출
+                recommendations, warning_message, debug_stats, time_progression = analyzer.recommend_next_countries(
                     start_country, selected_genre, genre_mapping,
-                    top_k=8
+                    top_k=10
                 )
-            # 시작 국가 정보 표시 (화면에는 장르명 표시)
-            if selected_genre_name == '전체':
-                st.subheader(f"🌍 {start_country} » 📍 전체 장르")
+                
             else:
-                st.subheader(f"🌍 {start_country} » 📍 {selected_genre_name} 장르")
-            
-            info_col1, info_col2, info_col3 = st.columns(3)
-            with info_col1:
-                st.metric("원작 작품 수", f"{start_stats['total_original_books']}개")
-            with info_col2:
-                st.metric("후속 진출 건수", f"{start_stats['total_transitions']}건")
-            with info_col3:
-                # st.metric("후속 진출률", f"{start_stats['transition_rate']:.1f}%")
-                st.write('')
+                # 기존 로직: 특정 국가 선택
+                start_stats, df = analyzer.get_start_country_stats(start_country, selected_genre)
+                
+                # 후속 국가 추천
+                recommendations, warning_message, debug_stats, time_progression = analyzer.recommend_next_countries(
+                    start_country, selected_genre, genre_mapping,
+                    # top_k=8
+                    top_k=10 # 251114 테오 수정 10개 추출
+
+                )
+                
+                # 시작 국가 정보 표시 (화면에는 장르명 표시)
+                if selected_genre_name == '전체':
+                    st.subheader(f"🌍 {start_country} » 📍 전체 장르")
+                else:
+                    st.subheader(f"🌍 {start_country} » 📍 {selected_genre_name} 장르")
+                
+                info_col1, info_col2, info_col3 = st.columns(3)
+                with info_col1:
+                    st.metric("원작 작품 수", f"{start_stats['total_original_books']}개")
+                with info_col2:
+                    st.metric("후속 진출 건수", f"{start_stats['total_transitions']}건")
+                with info_col3:
+                    st.write('')
             
             st.markdown("---")
+
             
             # 추천 결과 표시
             if recommendations:
@@ -1504,7 +1791,9 @@ def main():
                 
                 with chart_tab1:
                     # 진출 확률 막대 차트
-                    chart_data = recommendations[:8]
+                    # chart_data = recommendations[:8] # 251114 테오 수정 (10개 보이게)
+                    chart_data = recommendations[:10] # 251114 테오 수정 (10개 보이게)
+
                     if selected_genre == '전체':
                         chart_title = f"{start_country}에서 전체 장르의 후속 진출 확률"
                     else:
@@ -1529,13 +1818,22 @@ def main():
                 with chart_tab2:
                     # 진출 확률 vs 신뢰도 산점도
                     fig = px.scatter(
-                        x=[rec['confidence'] for rec in recommendations[:8]],
-                        y=[rec['probability'] for rec in recommendations[:8]],
-                        text=[rec['country'] for rec in recommendations[:8]],
+                        # 251114 테오 수정 10개 추출
+                        # x=[rec['confidence'] for rec in recommendations[:8]],
+                        # y=[rec['probability'] for rec in recommendations[:8]],
+                        # text=[rec['country'] for rec in recommendations[:8]],
+                        # title="신뢰도 vs 진출 확률",
+                        # labels={'x': '신뢰도 (%)', 'y': '진출 확률 (%)'},
+                        # size=[rec['final_score'] for rec in recommendations[:8]],
+                        # color=[rec['genre_fit'] for rec in recommendations[:8]],
+                        # color_continuous_scale="plasma"
+                        x=[rec['confidence'] for rec in recommendations[:10]],
+                        y=[rec['probability'] for rec in recommendations[:10]],
+                        text=[rec['country'] for rec in recommendations[:10]],
                         title="신뢰도 vs 진출 확률",
                         labels={'x': '신뢰도 (%)', 'y': '진출 확률 (%)'},
-                        size=[rec['final_score'] for rec in recommendations[:8]],
-                        color=[rec['genre_fit'] for rec in recommendations[:8]],
+                        size=[rec['final_score'] for rec in recommendations[:10]],
+                        color=[rec['genre_fit'] for rec in recommendations[:10]],
                         color_continuous_scale="plasma"
                     )
                     fig.update_traces(textposition="top center")
